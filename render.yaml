@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: casewire
+    env: node
+    plan: free
+    branch: claude/pi-case-flow-prototype-0kio4g
+    buildCommand: npm ci && npm run build
+    startCommand: npm run start
+    envVars:
+      - key: NODE_VERSION
+        value: 22.22.2
