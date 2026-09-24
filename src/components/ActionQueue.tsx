@@ -9,7 +9,7 @@ export function ActionQueue({
 }) {
   if (items.length === 0) {
     return (
-      <div className="rounded-2xl border border-dashed border-border bg-surface p-8 text-center">
+      <div className="rounded-lg border border-dashed border-border bg-surface p-8 text-center">
         <p className="font-display text-lg font-semibold">All caught up.</p>
         <p className="mt-1 text-sm text-muted">
           No case needs action from you right now — the tracker will surface one the moment it does.
@@ -24,7 +24,7 @@ export function ActionQueue({
         <Link
           key={record.id}
           href={action.href}
-          className={`flex items-center justify-between gap-4 rounded-2xl border p-4 transition hover:-translate-y-0.5 hover:shadow-md ${
+          className={`flex items-center justify-between gap-4 rounded-lg border p-4 transition hover:shadow-sm ${
             action.urgency === "urgent"
               ? "border-danger/40 bg-danger/5"
               : "border-border bg-surface"
@@ -33,7 +33,7 @@ export function ActionQueue({
           <div className="flex items-start gap-3">
             <span
               className={`mt-1 h-2.5 w-2.5 shrink-0 rounded-full ${
-                action.urgency === "urgent" ? "bg-danger" : "bg-accent-2"
+                action.urgency === "urgent" ? "bg-danger" : "bg-accent"
               }`}
             />
             <div>
@@ -42,7 +42,7 @@ export function ActionQueue({
             </div>
           </div>
           <span
-            className={`shrink-0 rounded-full px-4 py-2 text-sm font-semibold ${
+            className={`shrink-0 rounded-md px-3 py-1.5 text-sm font-semibold ${
               action.urgency === "urgent"
                 ? "bg-danger text-white"
                 : "border border-border bg-background text-foreground"

@@ -5,11 +5,16 @@ import { formatHoursInStage } from "@/lib/format";
 import { hoursInStage, isOverdue } from "@/lib/followup";
 
 const STAGE_TO_TAB: Record<CaseRecord["stage"], string> = {
-  intake: "intake",
+  intake: "",
   extraction: "extraction",
   draft: "draft",
   tracking: "draft",
 };
+
+function caseHref(record: CaseRecord): string {
+  const tab = STAGE_TO_TAB[record.stage];
+  return tab ? `/case/${record.id}/${tab}` : `/case/${record.id}`;
+}
 
 export function CaseCard({ record }: { record: CaseRecord }) {
   const overdue = isOverdue(record);
@@ -17,11 +22,11 @@ export function CaseCard({ record }: { record: CaseRecord }) {
 
   return (
     <Link
-      href={`/case/${record.id}/${STAGE_TO_TAB[record.stage]}`}
-      className="group relative flex flex-col gap-3 overflow-hidden rounded-2xl border border-border bg-surface p-5 transition hover:-translate-y-0.5 hover:shadow-lg hover:shadow-foreground/5"
+      href={caseHref(record)}
+      className="group relative flex flex-col gap-3 overflow-hidden rounded-lg border border-border bg-surface p-5 transition hover:shadow-sm"
     >
       {overdue && (
-        <span className="absolute right-0 top-0 rounded-bl-xl bg-danger px-3 py-1 text-[11px] font-bold uppercase tracking-wide text-white">
+        <span className="absolute right-0 top-0 rounded-bl-md bg-danger px-3 py-1 text-[11px] font-bold uppercase tracking-wide text-white">
           Needs follow-up
         </span>
       )}
@@ -37,7 +42,7 @@ export function CaseCard({ record }: { record: CaseRecord }) {
       <div className="flex flex-wrap items-center gap-2">
         <StageBadge record={record} />
         <span
-          className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold ${
+          className={`inline-flex items-center gap-1 rounded-md border px-2.5 py-1 text-xs font-semibold ${
             overdue
               ? "border-danger/30 bg-danger/10 text-danger"
               : "border-border bg-background text-muted"
@@ -49,7 +54,7 @@ export function CaseCard({ record }: { record: CaseRecord }) {
 
       <div className="mt-1 flex items-center justify-between text-xs text-muted">
         <span>Follow-up window: {record.followUpWindowHours}h</span>
-        <span className="font-semibold text-accent-2 group-hover:underline">
+        <span className="font-semibold text-accent group-hover:underline">
           Open case →
         </span>
       </div>

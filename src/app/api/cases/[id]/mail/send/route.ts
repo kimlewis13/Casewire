@@ -25,6 +25,15 @@ export async function POST(
   if (existing.mail.status !== "not_sent") {
     return NextResponse.json({ error: "This letter has already been sent." }, { status: 400 });
   }
+  const unresolved = existing.extraction.flags.filter((f) => !f.resolved);
+  if (unresolved.length > 0) {
+    return NextResponse.json(
+      {
+        error: `${unresolved.length} review item${unresolved.length === 1 ? "" : "s"} still need${unresolved.length === 1 ? "s" : ""} to be cleared before this can go out.`,
+      },
+      { status: 400 }
+    );
+  }
 
   const now = new Date().toISOString();
 

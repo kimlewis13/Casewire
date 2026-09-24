@@ -3,7 +3,6 @@ import { sortActions } from "@/lib/actions";
 import { CaseCard } from "@/components/CaseCard";
 import { ActionQueue } from "@/components/ActionQueue";
 import { NewCaseForm } from "@/components/NewCaseForm";
-import { RunFollowUpCheck } from "@/components/RunFollowUpCheck";
 
 export default function DashboardPage() {
   const { cases } = readDb();
@@ -12,22 +11,21 @@ export default function DashboardPage() {
   return (
     <div className="mx-auto max-w-6xl px-5 py-10">
       <div className="mb-8 flex flex-col gap-1">
-        <span className="text-sm font-semibold uppercase tracking-widest text-accent-2">
+        <span className="text-xs font-semibold uppercase tracking-widest text-muted">
           Your queue
         </span>
-        <h1 className="font-display text-4xl font-bold tracking-tight">
-          Here&rsquo;s what needs you today.
+        <h1 className="font-display text-2xl font-semibold tracking-tight">
+          Today&rsquo;s priorities
         </h1>
-        <p className="max-w-2xl text-muted">
-          The system tracks where every case sits so you don&rsquo;t have to
-          — nothing here got re-typed between client intake, the medical
-          records, and the demand letter.
+        <p className="max-w-2xl text-sm text-muted">
+          The system tracks where every case sits, so nothing has to be
+          remembered — and nothing gets re-typed between intake, records, and
+          the letter.
         </p>
       </div>
 
-      <div className="mb-4 flex flex-wrap items-start justify-between gap-4">
+      <div className="mb-4">
         <NewCaseForm />
-        <RunFollowUpCheck />
       </div>
 
       <ActionQueue items={queue} />
@@ -38,7 +36,7 @@ export default function DashboardPage() {
       </div>
 
       {cases.length === 0 ? (
-        <p className="rounded-2xl border border-dashed border-border p-10 text-center text-muted">
+        <p className="rounded-lg border border-dashed border-border p-10 text-center text-muted">
           No cases yet — start one above.
         </p>
       ) : (

@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { CaseRecord } from "@/lib/types";
-import { MailPanel } from "@/components/MailPanel";
 
 export function DraftView({ record }: { record: CaseRecord }) {
   const [current, setCurrent] = useState(record);
@@ -29,7 +28,7 @@ export function DraftView({ record }: { record: CaseRecord }) {
 
   if (!current.extraction.completed) {
     return (
-      <p className="rounded-2xl border border-dashed border-border p-6 text-sm text-muted">
+      <p className="rounded-lg border border-dashed border-border p-6 text-sm text-muted">
         Add the medical records first — the letter pulls its chronology and
         damages narrative straight from there.
       </p>
@@ -37,7 +36,7 @@ export function DraftView({ record }: { record: CaseRecord }) {
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-5">
       <div className="flex items-center justify-between">
         <p className="text-sm text-muted">
           {current.draft.letter
@@ -48,7 +47,7 @@ export function DraftView({ record }: { record: CaseRecord }) {
           <button
             onClick={generate}
             disabled={generating}
-            className="rounded-full border border-border bg-surface px-4 py-2 text-sm font-semibold transition hover:border-accent-2 hover:text-accent-2 disabled:opacity-60"
+            className="rounded-md border border-border bg-surface px-4 py-2 text-sm font-semibold transition hover:border-accent hover:text-accent disabled:opacity-60"
           >
             {generating
               ? "Drafting…"
@@ -62,7 +61,7 @@ export function DraftView({ record }: { record: CaseRecord }) {
       {current.draft.letter && (
         <>
           {current.draft.reviewItems.length > 0 && (
-            <div className="rounded-2xl border border-warning/30 bg-warning/10 p-4">
+            <div className="rounded-lg border border-warning/30 bg-warning/10 p-4">
               <p className="mb-2 text-xs font-bold uppercase tracking-wide text-warning">
                 Needs attorney review before sending
               </p>
@@ -74,11 +73,9 @@ export function DraftView({ record }: { record: CaseRecord }) {
             </div>
           )}
 
-          <pre className="whitespace-pre-wrap rounded-2xl border border-border bg-surface p-6 font-mono text-sm leading-relaxed">
+          <pre className="whitespace-pre-wrap rounded-lg border border-border bg-surface p-6 font-mono text-sm leading-relaxed">
             {current.draft.letter}
           </pre>
-
-          <MailPanel record={current} onChange={setCurrent} />
         </>
       )}
     </div>

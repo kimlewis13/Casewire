@@ -1,4 +1,5 @@
 export type CaseStage = "intake" | "extraction" | "draft" | "tracking";
+export type CaseSource = "direct" | "chatbot";
 
 export interface IntakeTurn {
   id: string;
@@ -46,6 +47,7 @@ export interface ExtractionFlag {
   severity: FlagSeverity;
   message: string;
   relatedEntryIds: string[];
+  resolved: boolean;
 }
 
 export interface ExtractionState {
@@ -91,6 +93,7 @@ export interface CaseRecord {
   contactEmail: string;
   contactPhone: string;
   owner: string;
+  source: CaseSource;
   createdAt: string;
   stage: CaseStage;
   stageEnteredAt: string;

@@ -1,15 +1,12 @@
 import type { Metadata } from "next";
-import { Plus_Jakarta_Sans, Space_Grotesk, Geist_Mono } from "next/font/google";
+import { Inter, Geist_Mono } from "next/font/google";
 import { NavBar } from "@/components/NavBar";
+import { ToastProvider } from "@/components/Toast";
+import { FollowUpPoller } from "@/components/FollowUpPoller";
 import "./globals.css";
 
-const bodyFont = Plus_Jakarta_Sans({
+const bodyFont = Inter({
   variable: "--font-body",
-  subsets: ["latin"],
-});
-
-const displayFont = Space_Grotesk({
-  variable: "--font-display",
   subsets: ["latin"],
 });
 
@@ -28,11 +25,14 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
-      className={`${bodyFont.variable} ${displayFont.variable} ${monoFont.variable} h-full antialiased`}
+      className={`${bodyFont.variable} ${monoFont.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-background text-foreground">
-        <NavBar />
-        <main className="flex-1">{children}</main>
+        <ToastProvider>
+          <FollowUpPoller />
+          <NavBar />
+          <main className="flex-1">{children}</main>
+        </ToastProvider>
       </body>
     </html>
   );

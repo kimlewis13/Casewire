@@ -22,11 +22,12 @@ export function NewCaseForm() {
           contactPhone: formData.get("contactPhone"),
           owner: formData.get("owner"),
           followUpWindowHours: formData.get("followUpWindowHours"),
+          source: formData.get("source"),
         }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Could not create case");
-      router.push(`/case/${data.case.id}/intake`);
+      router.push(`/case/${data.case.id}`);
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
@@ -38,7 +39,7 @@ export function NewCaseForm() {
     return (
       <button
         onClick={() => setOpen(true)}
-        className="inline-flex items-center gap-2 rounded-full bg-accent px-5 py-2.5 text-sm font-semibold text-accent-foreground shadow-sm transition hover:brightness-105 active:scale-[0.98]"
+        className="inline-flex items-center gap-2 rounded-md bg-accent px-4 py-2 text-sm font-semibold text-accent-foreground shadow-sm transition hover:brightness-110"
       >
         + New case
       </button>
@@ -48,7 +49,7 @@ export function NewCaseForm() {
   return (
     <form
       action={handleSubmit}
-      className="w-full max-w-xl rounded-2xl border border-border bg-surface p-5"
+      className="w-full max-w-xl rounded-lg border border-border bg-surface p-5"
     >
       <div className="mb-3 flex items-center justify-between">
         <h3 className="font-display text-base font-semibold">Start a new case</h3>
@@ -60,6 +61,18 @@ export function NewCaseForm() {
           Cancel
         </button>
       </div>
+
+      <fieldset className="mb-3 flex gap-4 text-sm">
+        <label className="flex items-center gap-2">
+          <input type="radio" name="source" value="chatbot" defaultChecked />
+          Website chat
+        </label>
+        <label className="flex items-center gap-2">
+          <input type="radio" name="source" value="direct" />
+          Entered directly
+        </label>
+      </fieldset>
+
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="flex flex-col gap-1 text-sm sm:col-span-2">
           Client name
@@ -67,7 +80,7 @@ export function NewCaseForm() {
             name="clientName"
             required
             placeholder="e.g. Jamie Torres"
-            className="rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-accent-2"
+            className="rounded-md border border-border bg-background px-3 py-2 text-sm outline-none focus:border-accent"
           />
         </label>
         <label className="flex flex-col gap-1 text-sm">
@@ -76,7 +89,7 @@ export function NewCaseForm() {
             name="contactEmail"
             type="email"
             placeholder="jamie@example.com"
-            className="rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-accent-2"
+            className="rounded-md border border-border bg-background px-3 py-2 text-sm outline-none focus:border-accent"
           />
         </label>
         <label className="flex flex-col gap-1 text-sm">
@@ -84,15 +97,15 @@ export function NewCaseForm() {
           <input
             name="contactPhone"
             placeholder="+1 555 555 0100"
-            className="rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-accent-2"
+            className="rounded-md border border-border bg-background px-3 py-2 text-sm outline-none focus:border-accent"
           />
         </label>
         <label className="flex flex-col gap-1 text-sm">
           Owner
           <input
             name="owner"
-            defaultValue="You (paralegal)"
-            className="rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-accent-2"
+            defaultValue="Paralegal - You"
+            className="rounded-md border border-border bg-background px-3 py-2 text-sm outline-none focus:border-accent"
           />
         </label>
         <label className="flex flex-col gap-1 text-sm">
@@ -102,7 +115,7 @@ export function NewCaseForm() {
             type="number"
             min={1}
             defaultValue={48}
-            className="rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-accent-2"
+            className="rounded-md border border-border bg-background px-3 py-2 text-sm outline-none focus:border-accent"
           />
         </label>
       </div>
@@ -110,7 +123,7 @@ export function NewCaseForm() {
       <button
         type="submit"
         disabled={submitting}
-        className="mt-4 inline-flex items-center gap-2 rounded-full bg-foreground px-5 py-2.5 text-sm font-semibold text-background transition hover:brightness-110 disabled:opacity-60"
+        className="mt-4 inline-flex items-center gap-2 rounded-md bg-foreground px-4 py-2 text-sm font-semibold text-background transition hover:brightness-110 disabled:opacity-60"
       >
         {submitting ? "Creating…" : "Create & start intake"}
       </button>

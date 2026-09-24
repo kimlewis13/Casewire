@@ -4,13 +4,6 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { CaseRecord } from "@/lib/types";
 import { SAMPLE_DOCUMENTS } from "@/lib/sampleDocuments";
-import { SEVERITY_BADGE_CLASS } from "@/lib/format";
-
-const FLAG_LABEL: Record<string, string> = {
-  gap: "Treatment gap",
-  inconsistency: "Inconsistency",
-  missing: "Unresolved item",
-};
 
 export function RecordsWorkspace({ record }: { record: CaseRecord }) {
   const [pending, setPending] = useState(false);
@@ -53,14 +46,14 @@ export function RecordsWorkspace({ record }: { record: CaseRecord }) {
     }
   }
 
-  const { chronology, flags } = current.extraction;
+  const { chronology } = current.extraction;
   const first = chronology[0];
   const last = chronology[chronology.length - 1];
   const providers = new Set(chronology.map((e) => e.provider)).size;
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="rounded-2xl border border-border bg-surface p-5">
+    <div className="flex flex-col gap-5">
+      <div className="rounded-lg border border-border bg-surface p-5">
         <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-muted">
           On file
         </p>
@@ -83,33 +76,7 @@ export function RecordsWorkspace({ record }: { record: CaseRecord }) {
         )}
       </div>
 
-      {current.extraction.completed && (
-        <div className="rounded-2xl border border-border bg-surface p-5">
-          <h3 className="mb-3 font-display text-base font-semibold">
-            Needs review before drafting
-          </h3>
-          {flags.length === 0 ? (
-            <p className="text-sm text-muted">
-              Nothing flagged — this file looks complete.
-            </p>
-          ) : (
-            <ul className="flex flex-col gap-3">
-              {flags.map((flag) => (
-                <li key={flag.id} className="rounded-xl border border-border bg-background p-3 text-sm">
-                  <span
-                    className={`mb-1 inline-block rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${SEVERITY_BADGE_CLASS[flag.severity]}`}
-                  >
-                    {FLAG_LABEL[flag.type]} · {flag.severity}
-                  </span>
-                  <p className="mt-1">{flag.message}</p>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      )}
-
-      <div className="rounded-2xl border border-border bg-surface p-5">
+      <div className="rounded-lg border border-border bg-surface p-5">
         <h3 className="mb-1 font-display text-base font-semibold">Add a medical record</h3>
         <p className="mb-4 text-sm text-muted">
           Two sample records to try, or paste one in below.
@@ -121,7 +88,7 @@ export function RecordsWorkspace({ record }: { record: CaseRecord }) {
               key={doc.id}
               onClick={() => runExtraction({ documentId: doc.id })}
               disabled={pending}
-              className="rounded-xl border border-border bg-background p-4 text-left text-sm transition hover:border-accent-2 disabled:opacity-60"
+              className="rounded-md border border-border bg-background p-4 text-left text-sm transition hover:border-accent disabled:opacity-60"
             >
               <p className="font-semibold">{doc.name}</p>
               <p className="mt-1 text-xs text-muted">{doc.description}</p>
@@ -130,7 +97,7 @@ export function RecordsWorkspace({ record }: { record: CaseRecord }) {
         </div>
 
         <details className="mt-4">
-          <summary className="cursor-pointer text-sm font-semibold text-accent-2">
+          <summary className="cursor-pointer text-sm font-semibold text-accent">
             Or paste a record in as text
           </summary>
           <textarea
@@ -138,12 +105,12 @@ export function RecordsWorkspace({ record }: { record: CaseRecord }) {
             onChange={(e) => setPasted(e.target.value)}
             rows={8}
             placeholder={"Date: 2024-01-05\nProvider: ...\nType: visit\nNotes: ...\n---\nDate: ..."}
-            className="mt-3 w-full rounded-xl border border-border bg-background p-3 font-mono text-xs outline-none focus:border-accent-2"
+            className="mt-3 w-full rounded-md border border-border bg-background p-3 font-mono text-xs outline-none focus:border-accent"
           />
           <button
             onClick={() => runExtraction({ text: pasted })}
             disabled={pending || !pasted.trim()}
-            className="mt-2 rounded-lg bg-foreground px-4 py-2 text-xs font-semibold text-background disabled:opacity-60"
+            className="mt-2 rounded-md bg-foreground px-4 py-2 text-xs font-semibold text-background disabled:opacity-60"
           >
             Add this record
           </button>
@@ -153,7 +120,7 @@ export function RecordsWorkspace({ record }: { record: CaseRecord }) {
       </div>
 
       {current.extraction.completed && (
-        <details className="rounded-2xl border border-border bg-surface p-5">
+        <details className="rounded-lg border border-border bg-surface p-5">
           <summary className="cursor-pointer select-none text-sm font-semibold text-muted hover:text-foreground">
             View full chronology
           </summary>
@@ -186,7 +153,7 @@ export function RecordsWorkspace({ record }: { record: CaseRecord }) {
         <button
           onClick={continueToDraft}
           disabled={advancing}
-          className="rounded-xl bg-accent px-4 py-3 text-sm font-semibold text-accent-foreground transition hover:brightness-105 disabled:opacity-60"
+          className="rounded-md bg-accent px-4 py-3 text-sm font-semibold text-accent-foreground transition hover:brightness-110 disabled:opacity-60"
         >
           {advancing ? "Moving on…" : "Continue to demand letter →"}
         </button>

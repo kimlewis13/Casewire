@@ -13,14 +13,15 @@ export interface CaseAction {
 }
 
 const STAGE_TO_TAB: Record<CaseRecord["stage"], string> = {
-  intake: "intake",
+  intake: "",
   extraction: "extraction",
   draft: "draft",
   tracking: "draft",
 };
 
 function caseHref(record: CaseRecord): string {
-  return `/case/${record.id}/${STAGE_TO_TAB[record.stage]}`;
+  const tab = STAGE_TO_TAB[record.stage];
+  return tab ? `/case/${record.id}/${tab}` : `/case/${record.id}`;
 }
 
 /**

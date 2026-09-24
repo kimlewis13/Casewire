@@ -7,30 +7,35 @@ real time pressure — not a production system.
 
 All sample data (names, injuries, dates) is fabricated. There is no auth,
 no multi-firm support, and no real OCR/ML extraction — reading medical
-records is a deliberately simple, deterministic parser (see "How the
-records parser actually works" below). User-facing copy avoids
-engineering terms like "extraction" or "OCR" on purpose — the internal
-code still uses those names, but nothing a paralegal sees should.
+records is a deliberately simple, deterministic parser. User-facing copy
+avoids engineering terms like "extraction" or "OCR" on purpose — the
+internal code still uses those names, but nothing a paralegal sees should.
 
 ## The core idea
 
 There's one `CaseRecord` per case, stored server-side. Every screen reads
-from and writes to the same record, and a "Case facts" panel on each
-screen shows the same captured values regardless of which stage you're
-looking at — nothing is re-typed at a handoff:
+from and writes to the same record, and a persistent rail on the right of
+every case screen shows the same case facts regardless of which tab
+you're on — nothing is re-typed at a handoff:
 
 - Client intake fills in structured fields (incident date, liability,
-  injury severity, treatment status, prior representation).
-- Medical records fills in a chronology and a "needs review" list.
+  injury severity, treatment status, prior representation) — either
+  through a scripted chat, or a plain form for cases entered directly by
+  a paralegal (see "Two intake paths" below).
+- Medical records fills in a chronology and a "needs review" checklist.
 - The demand letter is generated **from** the intake fields and the
-  chronology — not typed separately.
+  chronology — not typed separately, and can't be sent until every
+  review item is checked off (a real, server-enforced gate, not a
+  suggestion).
 - Sending is what moves a case into its final stage; delivery
   confirmation (with an optional photo of the signed slip) closes it out.
 
 The dashboard leads with a prioritized **action queue** — one line per
 case naming the single next thing a paralegal owes it — rather than a
 plain status list, so nobody has to infer what's needed from a stage
-badge. An "All cases" grid underneath covers everything else.
+badge. An "All cases" grid underneath covers everything else. The
+tracker polls in the background and toasts you when something changes;
+there's no manual refresh button anywhere in the app.
 
 ## Running it
 
@@ -39,37 +44,45 @@ npm install
 npm run dev
 ```
 
-Open `http://localhost:3000`. Five seeded demo cases appear on the
-dashboard, one per stage (plus one already sent and one already
-delivered, so all three mail states are visible without doing anything).
-`case-reyes` ("Jordan Reyes") is the intentionally unfinished one — walk
-it through the whole flow live.
+Open `http://localhost:3000`. Six seeded demo cases appear on the
+dashboard, spanning every stage and both intake paths, including one
+already sent and one already delivered. `case-reyes` ("Jordan Reyes") is
+the intentionally unfinished chat-intake case; `case-whitfield` ("Sam
+Whitfield") is the same, but for the direct-entry path — walk either one
+through the whole flow live.
 
 Data lives in `data/db.json`, created automatically on first run and
 gitignored (it's runtime state, not source). Delete it (or `POST
 /api/reset`) to get back to the original seed.
 
+## Two intake paths
+
+A case is either **chatbot**-sourced (a scripted conversation, with a
+heuristic vagueness check — e.g. "it was bad" for an incident date has no
+digits, so it gets followed up on instead of recorded as-is) or
+**direct**-sourced (a paralegal fills in a plain form because they
+already have the facts from a call). Both produce the same case-facts
+shape — they only differ in provenance. The persistent rail shows which
+one a case came from: chatbot cases get a clickable "view transcript"
+link for audit; direct-entry cases just say who entered them, since
+there's nothing else to show.
+
 ## The screens
 
-### Client details (`/case/[id]/intake`)
+### Client intake (`/case/[id]`)
 
-A scripted chat that asks five questions (incident date, liability,
-injury severity, treatment status, prior representation). Each question
-has a heuristic vagueness check — e.g. "it was bad" for an incident date
-has no digits, so it gets followed up ("do you have an approximate date?")
-instead of being written to the record as-is. The clarified answer
-replaces (or, for narrative fields, extends) the original — the vague
-version never survives into the case record or the letter. The captured
-facts are the primary view; the back-and-forth that produced them sits
-collapsed behind "View chat details" for anyone who wants to audit it.
+The case's own index page *is* the intake screen while a case is in that
+stage — there's no separate tab competing for attention once it's done.
+The captured facts live in the persistent rail; the chat or form is just
+today's task.
 
 ### Medical records (`/case/[id]/extraction`)
 
 Two fabricated sample records are built in, plus a box to paste your own
-in the same format. The parser looks for `Date: / Provider: / Type: /
-Notes:` blocks separated by `---`. It surfaces what's on file, a "needs
-review before drafting" checklist, and — behind a disclosure, since it's
-supporting detail rather than the headline — the full chronology table.
+in the same `Date: / Provider: / Type: / Notes:` format (blocks
+separated by `---`). It surfaces what's on file, an "add a record"
+action, and — behind a disclosure, since it's supporting detail rather
+than the headline — the full chronology table.
 
 Three checks run over the parsed chronology:
 - **Gaps** — any two consecutive dated entries more than 30 days apart.
@@ -80,23 +93,22 @@ Three checks run over the parsed chronology:
 
 The first sample document ("Reyes — rear-end collision") plants all
 three. The second ("Shah — slip and fall") is clean, to show the checks
-aren't just always firing.
+aren't just always firing. Each flag becomes a checkable item in the
+rail — see "The review gate" below.
 
 ### Demand letter (`/case/[id]/draft`)
 
-Assembles a first-pass letter from the intake fields and the chronology,
-plus a "needs attorney review" list built from the records flags (and a
-standing reminder that billing/damages figures aren't computed here).
+Assembles a first-pass letter from the intake fields and the chronology.
 Regenerating pulls from whatever is currently on the case record — until
-it's sent, after which the letter locks and only the mail state below it
-moves.
+it's sent, after which the letter locks.
 
-**Certified mail** lives at the bottom of this screen as a three-state
-flow, since that's how PI demand letters actually go out (return receipt
-requested, to establish a paper trail):
+**Certified mail** lives in the persistent rail (not buried in this tab)
+as a three-state flow, since that's how PI demand letters actually go
+out (return receipt requested, to establish a paper trail):
 1. **Ready to send** → "Send via certified mail" (optional tracking
-   number). This is also what actually advances the case out of the
-   drafting stage — sending is the transition, not a separate button.
+   number) — disabled until every review item is cleared. This is also
+   what actually advances the case out of drafting; sending *is* the
+   transition, not a separate button.
 2. **Sent — awaiting delivery** → "Mark as delivered" opens a small form
    for the delivery date/time, who signed for it, and an optional photo
    of the delivery slip/green card.
@@ -107,27 +119,37 @@ There's no real certified-mail API wired up here (unlike email/SMS below)
 — faking a government mail receipt would be worse than just being honest
 that this step is manually confirmed.
 
+### The review gate
+
+Every flag from the medical-records check becomes a checkbox in the
+rail. `POST /api/cases/[id]/mail/send` refuses the request server-side
+if any flag is still unresolved — this isn't just a UI disabled state,
+the API enforces it too. Once sent, the checklist locks (you can't
+un-review something after the letter's in the mail).
+
 ### Status
 
-There's no separate status screen. Stage, time-in-stage, an overdue flag,
-and follow-up history live in a persistent header on every case screen,
-under the client's name, so it's never something you have to go check.
+There's no separate status screen. Stage, time-in-stage, sent/delivered
+timestamps, an overdue flag, and follow-up history live in a persistent
+header on every case screen, under the client's name — and an "attorney
+review needed" banner outranks the overdue banner when both could apply,
+since a blocked letter is more urgent than a slow clock.
 
 ## Follow-up alerts (Resend + textbee)
 
-Each case tracks a `followUpWindowHours`. The dashboard's "Run follow-up
-check" button (and the per-case one under "Follow-up history" in the
-header) evaluates every case: if it's been sitting in its current stage
-longer than that window **and** hasn't already been alerted for this
-stint in that stage, it fires a real email through Resend and a real SMS
-through textbee, and logs the result either way (sent / skipped / failed).
-A case that's already been marked **delivered** is never flagged as
-overdue — there's nothing left to chase.
+Each case tracks a `followUpWindowHours`. A background poller (every 45s,
+no button) checks every case: if one has been sitting in its current
+stage longer than that window **and** hasn't already been alerted for
+this stint in that stage, it fires a real email through Resend and a
+real SMS through textbee, toasts you, and logs the result either way
+(sent / skipped / failed) in that case's follow-up history. A case
+that's already been marked **delivered** is never flagged as overdue —
+there's nothing left to chase.
 
 Without any of this configured, the check still does everything except
-the actual send — it correctly detects overdue cases and shows
-`skipped: not configured` in the log, so the rest of the demo keeps
-working. To make it a real send:
+the actual send — it correctly detects overdue cases and shows a plain
+"alerts aren't turned on yet" message in the log, so the rest of the demo
+keeps working. To make it a real send:
 
 1. Copy `.env.example` to `.env.local`.
 2. **Resend** — create a free account, verify a sending domain, generate
@@ -138,7 +160,16 @@ working. To make it a real send:
    *before* touching the tracker code, since it's the setup most likely
    to stall mid-build. Set `TEXTBEE_API_KEY`, `TEXTBEE_DEVICE_ID`, and
    `ALERT_PHONE_TO`.
-4. Restart `npm run dev` so the new env vars load.
+4. Restart `npm run dev` (or redeploy) so the new env vars load.
+
+## Deploying
+
+`render.yaml` at the repo root is a one-click Render blueprint — Render
+runs this as a persistent Node process (not serverless), so the
+file-based store works with zero changes. Vercel and other serverless
+hosts won't work as-is, since their functions have a read-only
+filesystem and this prototype hasn't been wired up to an external
+database.
 
 ## Project layout
 
@@ -151,6 +182,7 @@ src/lib/demand.ts            demand letter template
 src/lib/followup.ts         overdue check + Resend/textbee integration
 src/lib/actions.ts          derives each case's single next action
 src/lib/sampleDocuments.ts  the two fabricated medical records
-src/app/case/[id]/...       the per-case screens (client details, records, letter)
+src/components/CaseRail.tsx the persistent facts/action/review/mail panel
+src/app/case/[id]/...       the per-case screens
 src/app/api/...             mutation routes backing each screen
 ```

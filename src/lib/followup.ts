@@ -2,6 +2,7 @@ import { randomUUID } from "crypto";
 import { Resend } from "resend";
 import type { CaseRecord, FollowUpLog } from "./types";
 import { getCase, updateCase } from "./db";
+import { stageDisplayLabel } from "./format";
 
 export function hoursInStage(c: CaseRecord): number {
   return (Date.now() - new Date(c.stageEnteredAt).getTime()) / (1000 * 60 * 60);
@@ -29,28 +30,28 @@ async function sendFollowUpEmail(c: CaseRecord): Promise<SendResult> {
   if (!apiKey || !from || !to) {
     return {
       status: "skipped",
-      detail:
-        "Resend not configured — set RESEND_API_KEY, RESEND_FROM_EMAIL, and ALERT_EMAIL_TO to send real alerts.",
+      detail: "Email alerts aren't turned on yet for this workspace.",
     };
   }
 
   try {
     const resend = new Resend(apiKey);
     const hours = Math.round(hoursInStage(c));
+    const stageLabel = stageDisplayLabel(c);
     const { error } = await resend.emails.send({
       from,
       to,
-      subject: `Casewire: ${c.clientName} has stalled in ${c.stage}`,
+      subject: `Casewire: ${c.clientName} has stalled in ${stageLabel}`,
       html: `
         <div style="font-family:sans-serif;max-width:480px">
-          <h2 style="color:#FF5A36;margin-bottom:4px">Casewire follow-up alert</h2>
+          <h2 style="color:#1F3A5F;margin-bottom:4px">Casewire follow-up alert</h2>
           <p><strong>${c.clientName}</strong>'s case has been sitting in
-          <strong>${c.stage}</strong> for about ${hours} hours — past its
+          <strong>${stageLabel}</strong> for about ${hours} hours — past its
           ${c.followUpWindowHours}-hour follow-up window.</p>
           <p>Owner: ${c.owner}</p>
           <p style="color:#666;font-size:13px">Sent automatically by Casewire (prototype).</p>
         </div>`,
-      text: `Casewire follow-up alert: ${c.clientName}'s case has been sitting in ${c.stage} for about ${hours} hours, past its ${c.followUpWindowHours}-hour follow-up window. Owner: ${c.owner}.`,
+      text: `Casewire follow-up alert: ${c.clientName}'s case has been sitting in ${stageLabel} for about ${hours} hours, past its ${c.followUpWindowHours}-hour follow-up window. Owner: ${c.owner}.`,
     });
     if (error) {
       return { status: "failed", detail: error.message ?? JSON.stringify(error) };
@@ -72,8 +73,7 @@ async function sendFollowUpSms(c: CaseRecord): Promise<SendResult> {
   if (!apiKey || !deviceId || !to) {
     return {
       status: "skipped",
-      detail:
-        "textbee not configured — set TEXTBEE_API_KEY, TEXTBEE_DEVICE_ID, and ALERT_PHONE_TO to send a real text.",
+      detail: "Text alerts aren't turned on yet for this workspace.",
     };
   }
 
@@ -89,7 +89,7 @@ async function sendFollowUpSms(c: CaseRecord): Promise<SendResult> {
         },
         body: JSON.stringify({
           recipients: [to],
-          message: `Casewire: ${c.clientName} has been stuck in ${c.stage} for ~${hours}h (owner: ${c.owner}). Check the tracker.`,
+          message: `Casewire: ${c.clientName} has been stuck in ${stageDisplayLabel(c)} for ~${hours}h (owner: ${c.owner}). Check the tracker.`,
         }),
       }
     );

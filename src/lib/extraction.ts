@@ -110,6 +110,7 @@ export function detectFlags(entries: ChronologyEntry[]): ExtractionFlag[] {
         severity: diffDays > 60 ? "high" : "medium",
         message: `${diffDays}-day gap in treatment between ${prev.date} (${prev.provider}) and ${curr.date} (${curr.provider}) — confirm whether care actually lapsed or records are missing.`,
         relatedEntryIds: [prev.id, curr.id],
+        resolved: false,
       });
     }
   }
@@ -132,6 +133,7 @@ export function detectFlags(entries: ChronologyEntry[]): ExtractionFlag[] {
           sentence ?? phrase
         ).trim()}" but it is never addressed again in the record — confirm relevance to causation before drafting.`,
         relatedEntryIds: [entry.id],
+        resolved: false,
       });
       break; // one flag per document is enough signal; avoid duplicate noise
     }
@@ -151,11 +153,11 @@ export function detectFlags(entries: ChronologyEntry[]): ExtractionFlag[] {
     if (!entity) continue;
 
     const laterEntries = entries.slice(entries.indexOf(entry) + 1);
-    const resolved = laterEntries.some((later) =>
+    const referralResolved = laterEntries.some((later) =>
       later.raw.toLowerCase().includes(entity.toLowerCase())
     );
 
-    if (!resolved) {
+    if (!referralResolved) {
       flags.push({
         id: randomUUID(),
         type: "missing",
@@ -164,6 +166,7 @@ export function detectFlags(entries: ChronologyEntry[]): ExtractionFlag[] {
           lowerRaw.includes("recommended") ? "recommended" : "ordered"
         } on ${entry.date} (${entry.provider}) but no results or follow-up appear anywhere later in the record — confirm whether it was completed.`,
         relatedEntryIds: [entry.id],
+        resolved: false,
       });
     }
   }

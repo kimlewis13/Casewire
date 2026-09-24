@@ -1,7 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { randomUUID } from "crypto";
-import type { CaseRecord, Db, IntakeState, IntakeTurn, MailState } from "./types";
+import type { CaseRecord, CaseSource, Db, IntakeState, IntakeTurn, MailState } from "./types";
 import { INTAKE_FIELDS } from "./intakeScript";
 import { parseStructuredDocument, detectFlags } from "./extraction";
 import { findSampleDocument } from "./sampleDocuments";
@@ -22,7 +22,8 @@ function hoursAgo(h: number): string {
   return new Date(Date.now() - h * 60 * 60 * 1000).toISOString();
 }
 
-function seededIntake(values: Record<string, string>): IntakeState {
+/** A completed intake with a synthetic Q&A transcript, for chatbot-sourced seed cases. */
+function seededChatIntake(values: Record<string, string>): IntakeState {
   const transcript: IntakeTurn[] = [];
   INTAKE_FIELDS.forEach((field, i) => {
     transcript.push({
@@ -50,6 +51,16 @@ function seededIntake(values: Record<string, string>): IntakeState {
   };
 }
 
+/** A completed intake with no transcript, for direct-entry seed cases. */
+function seededDirectIntake(values: Record<string, string>): IntakeState {
+  return {
+    cursor: { fieldIndex: INTAKE_FIELDS.length, awaitingFollowUp: false },
+    transcript: [],
+    values,
+    completed: true,
+  };
+}
+
 function emptyMail(): MailState {
   return {
     status: "not_sent",
@@ -67,6 +78,7 @@ function newCase(partial: {
   contactEmail: string;
   contactPhone: string;
   owner: string;
+  source: CaseSource;
   stage: CaseRecord["stage"];
   stageEnteredAt: string;
   followUpWindowHours: number;
@@ -86,6 +98,7 @@ function newCase(partial: {
     contactEmail: partial.contactEmail,
     contactPhone: partial.contactPhone,
     owner: partial.owner,
+    source: partial.source,
     createdAt: partial.createdAt,
     stage: partial.stage,
     stageEnteredAt: partial.stageEnteredAt,
@@ -108,6 +121,14 @@ function newCase(partial: {
     mail: { ...emptyMail(), ...partial.mail },
   };
 
+  // The hard send gate requires every flag resolved — for seeded cases that
+  // are already sent/delivered, mark them resolved so the seed reflects a
+  // world where that gate was always enforced (never a case with an open
+  // review item that somehow already went out).
+  if (record.mail.status !== "not_sent") {
+    record.extraction.flags = record.extraction.flags.map((f) => ({ ...f, resolved: true }));
+  }
+
   if (
     (partial.stage === "draft" || partial.stage === "tracking") &&
     record.extraction.completed
@@ -127,16 +148,33 @@ function newCase(partial: {
 function seedDb(): Db {
   const cases: CaseRecord[] = [
     // Primary golden-path case: walk this one through all four screens live.
+    // Chatbot-sourced, so the follow-up-on-vague-answer chat is on display.
     newCase({
       id: "case-reyes",
       clientName: "Jordan Reyes",
       contactEmail: "jordan.reyes@example.com",
       contactPhone: "+15555550101",
-      owner: "You (paralegal)",
+      owner: "Paralegal - You",
+      source: "chatbot",
       stage: "intake",
       stageEnteredAt: hoursAgo(1),
       followUpWindowHours: 48,
       createdAt: hoursAgo(1),
+      intake: emptyIntake(),
+    }),
+    // A second in-progress intake, this one entered directly — shows the
+    // plain-form entry path alongside the chat path above.
+    newCase({
+      id: "case-whitfield",
+      clientName: "Sam Whitfield",
+      contactEmail: "sam.whitfield@example.com",
+      contactPhone: "+15555550106",
+      owner: "Paralegal - Alex K.",
+      source: "direct",
+      stage: "intake",
+      stageEnteredAt: hoursAgo(2),
+      followUpWindowHours: 48,
+      createdAt: hoursAgo(2),
       intake: emptyIntake(),
     }),
     // Healthy case sitting in extraction, using the clean sample document.
@@ -145,12 +183,13 @@ function seedDb(): Db {
       clientName: "Priya Shah",
       contactEmail: "priya.shah@example.com",
       contactPhone: "+15555550102",
-      owner: "Alex Kim",
+      owner: "Paralegal - Alex K.",
+      source: "direct",
       stage: "extraction",
       stageEnteredAt: hoursAgo(6),
       followUpWindowHours: 72,
       createdAt: hoursAgo(30),
-      intake: seededIntake({
+      intake: seededDirectIntake({
         incidentDate: "February 1, 2024",
         liability: "Slipped on a wet floor at a grocery store entrance where no warning sign had been posted.",
         injurySeverity: "Right wrist sprain and right hip contusion, confirmed by X-ray with no fracture.",
@@ -165,12 +204,13 @@ function seedDb(): Db {
       clientName: "Devon Ward",
       contactEmail: "devon.ward@example.com",
       contactPhone: "+15555550103",
-      owner: "Alex Kim",
+      owner: "Paralegal - Alex K.",
+      source: "chatbot",
       stage: "draft",
       stageEnteredAt: hoursAgo(5),
       followUpWindowHours: 24,
       createdAt: hoursAgo(96),
-      intake: seededIntake({
+      intake: seededChatIntake({
         incidentDate: "January 5, 2024",
         liability: "Rear-ended at a stoplight by a distracted driver who admitted fault to responding police.",
         injurySeverity: "Cervical strain and lumbar contusion, treated with physical therapy and an orthopedic referral.",
@@ -186,12 +226,13 @@ function seedDb(): Db {
       clientName: "Taylor Brooks",
       contactEmail: "taylor.brooks@example.com",
       contactPhone: "+15555550104",
-      owner: "Morgan Lee",
+      owner: "Paralegal - Morgan L.",
+      source: "direct",
       stage: "tracking",
       stageEnteredAt: hoursAgo(10 * 24),
       followUpWindowHours: 72,
       createdAt: hoursAgo(40 * 24),
-      intake: seededIntake({
+      intake: seededDirectIntake({
         incidentDate: "November 3, 2023",
         liability: "Struck by a delivery van while crossing in a marked crosswalk with the signal in her favor.",
         injurySeverity: "Fractured left tibia requiring surgical fixation, followed by months of physical therapy.",
@@ -212,12 +253,13 @@ function seedDb(): Db {
       clientName: "Jamie Ortiz",
       contactEmail: "jamie.ortiz@example.com",
       contactPhone: "+15555550105",
-      owner: "Morgan Lee",
+      owner: "Paralegal - Morgan L.",
+      source: "chatbot",
       stage: "tracking",
       stageEnteredAt: hoursAgo(5 * 24),
       followUpWindowHours: 72,
       createdAt: hoursAgo(60 * 24),
-      intake: seededIntake({
+      intake: seededChatIntake({
         incidentDate: "August 12, 2023",
         liability: "Sideswiped while merging by a driver who failed to check their blind spot.",
         injurySeverity: "Shoulder sprain and mild concussion, resolved with six weeks of physical therapy.",
@@ -286,6 +328,7 @@ export function createCase(input: {
   contactPhone: string;
   owner: string;
   followUpWindowHours: number;
+  source: CaseSource;
 }): CaseRecord {
   const db = readDb();
   const record = newCase({
@@ -294,6 +337,7 @@ export function createCase(input: {
     contactEmail: input.contactEmail,
     contactPhone: input.contactPhone,
     owner: input.owner,
+    source: input.source,
     stage: "intake",
     stageEnteredAt: new Date().toISOString(),
     createdAt: new Date().toISOString(),
