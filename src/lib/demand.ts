@@ -17,7 +17,7 @@ export function generateDemandLetter(caseRecord: CaseRecord): {
     ? extraction.chronology
         .map((e) => `  - ${e.date} — ${e.provider}: ${e.summary}`)
         .join("\n")
-    : "  [No chronology on file yet — run document extraction first.]";
+    : "  [No chronology on file yet — add the medical records first.]";
 
   const first = extraction.chronology[0];
   const last = extraction.chronology[extraction.chronology.length - 1];
@@ -67,7 +67,7 @@ Casewire — connected case prototype`;
         ]
       : []),
     ...(extraction.chronology.length === 0
-      ? ["No chronology on file — run document extraction before sending."]
+      ? ["No chronology on file — add the medical records before sending."]
       : []),
   ];
 

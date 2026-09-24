@@ -5,7 +5,7 @@ const STAGE_TO_TAB: Record<string, string> = {
   intake: "intake",
   extraction: "extraction",
   draft: "draft",
-  tracking: "status",
+  tracking: "draft",
 };
 
 export default async function CaseIndexPage({ params }: PageProps<"/case/[id]">) {

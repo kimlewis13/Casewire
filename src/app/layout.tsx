@@ -21,7 +21,7 @@ const monoFont = Geist_Mono({
 export const metadata: Metadata = {
   title: "Casewire — connected PI case flow",
   description:
-    "Prototype: one data spine across intake, document extraction, demand drafting, and status tracking for a personal injury case.",
+    "Prototype: one data spine across client intake, medical records, the demand letter, and delivery tracking for a personal injury case.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

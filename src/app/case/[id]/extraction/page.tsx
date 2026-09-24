@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { getCase } from "@/lib/db";
-import { ExtractionWorkspace } from "@/components/ExtractionWorkspace";
+import { RecordsWorkspace } from "@/components/RecordsWorkspace";
 import { CaseRecordSummary } from "@/components/CaseRecordSummary";
 
 export default async function ExtractionPage({
@@ -13,12 +13,11 @@ export default async function ExtractionPage({
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
       <div>
-        <h2 className="mb-1 font-display text-xl font-semibold">Document extraction</h2>
+        <h2 className="mb-1 font-display text-xl font-semibold">Medical records</h2>
         <p className="mb-4 text-sm text-muted">
-          Pull a structured chronology out of the medical record, and surface
-          anything that looks missing or inconsistent.
+          What&rsquo;s on file, what&rsquo;s missing, and what needs a look before drafting.
         </p>
-        <ExtractionWorkspace record={record} />
+        <RecordsWorkspace record={record} />
       </div>
       <CaseRecordSummary record={record} />
     </div>

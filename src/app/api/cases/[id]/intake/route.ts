@@ -93,7 +93,7 @@ export async function POST(
     newTurns.push(
       systemTurn(
         null,
-        "That gives me what I need to build out the case record. You can continue to document extraction whenever you're ready.",
+        "That gives me what I need to build out the case record. You can continue to the medical records whenever you're ready.",
         false
       )
     );

@@ -64,6 +64,17 @@ export interface DraftState {
   completed: boolean;
 }
 
+export type MailStatus = "not_sent" | "sent" | "delivered";
+
+export interface MailState {
+  status: MailStatus;
+  sentAt: string | null;
+  trackingNumber: string | null;
+  deliveredAt: string | null;
+  signedBy: string | null;
+  proofImageDataUrl: string | null;
+}
+
 export interface FollowUpLog {
   id: string;
   triggeredAt: string;
@@ -88,6 +99,7 @@ export interface CaseRecord {
   intake: IntakeState;
   extraction: ExtractionState;
   draft: DraftState;
+  mail: MailState;
 }
 
 export interface Db {

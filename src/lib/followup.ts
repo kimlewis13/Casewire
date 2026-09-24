@@ -8,6 +8,7 @@ export function hoursInStage(c: CaseRecord): number {
 }
 
 export function isOverdue(c: CaseRecord): boolean {
+  if (c.stage === "tracking" && c.mail.status === "delivered") return false;
   return hoursInStage(c) > c.followUpWindowHours;
 }
 

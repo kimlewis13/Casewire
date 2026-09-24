@@ -1,7 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { randomUUID } from "crypto";
-import type { CaseRecord, Db, IntakeState, IntakeTurn } from "./types";
+import type { CaseRecord, Db, IntakeState, IntakeTurn, MailState } from "./types";
 import { INTAKE_FIELDS } from "./intakeScript";
 import { parseStructuredDocument, detectFlags } from "./extraction";
 import { findSampleDocument } from "./sampleDocuments";
@@ -50,6 +50,17 @@ function seededIntake(values: Record<string, string>): IntakeState {
   };
 }
 
+function emptyMail(): MailState {
+  return {
+    status: "not_sent",
+    sentAt: null,
+    trackingNumber: null,
+    deliveredAt: null,
+    signedBy: null,
+    proofImageDataUrl: null,
+  };
+}
+
 function newCase(partial: {
   id: string;
   clientName: string;
@@ -62,6 +73,7 @@ function newCase(partial: {
   createdAt: string;
   intake: IntakeState;
   sampleDocId?: string;
+  mail?: Partial<MailState>;
 }): CaseRecord {
   const chronology = partial.sampleDocId
     ? parseStructuredDocument(findSampleDocument(partial.sampleDocId)!.text)
@@ -93,6 +105,7 @@ function newCase(partial: {
       ranAt: chronology.length > 0 ? partial.createdAt : null,
     },
     draft: { letter: null, reviewItems: [], generatedAt: null, completed: false },
+    mail: { ...emptyMail(), ...partial.mail },
   };
 
   if (
@@ -186,6 +199,39 @@ function seedDb(): Db {
         priorRepresentation: "No prior attorney contact.",
       }),
       sampleDocId: "reyes-rear-end",
+      mail: {
+        status: "sent",
+        sentAt: hoursAgo(10 * 24),
+        trackingNumber: "9407 3000 0000 0000 1234 56",
+      },
+    }),
+    // Fully closed out — delivered — so all three mail states are visible
+    // in the seed data without any manual steps.
+    newCase({
+      id: "case-ortiz",
+      clientName: "Jamie Ortiz",
+      contactEmail: "jamie.ortiz@example.com",
+      contactPhone: "+15555550105",
+      owner: "Morgan Lee",
+      stage: "tracking",
+      stageEnteredAt: hoursAgo(5 * 24),
+      followUpWindowHours: 72,
+      createdAt: hoursAgo(60 * 24),
+      intake: seededIntake({
+        incidentDate: "August 12, 2023",
+        liability: "Sideswiped while merging by a driver who failed to check their blind spot.",
+        injurySeverity: "Shoulder sprain and mild concussion, resolved with six weeks of physical therapy.",
+        treatmentStatus: "Discharged from care; no further treatment needed.",
+        priorRepresentation: "No prior attorney contact.",
+      }),
+      sampleDocId: "shah-slip-fall",
+      mail: {
+        status: "delivered",
+        sentAt: hoursAgo(5 * 24),
+        trackingNumber: "9407 3000 0000 0000 9988 77",
+        deliveredAt: hoursAgo(2 * 24),
+        signedBy: "J. Ortiz",
+      },
     }),
   ];
 

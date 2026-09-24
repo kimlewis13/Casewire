@@ -8,7 +8,7 @@ const STAGE_TO_TAB: Record<CaseRecord["stage"], string> = {
   intake: "intake",
   extraction: "extraction",
   draft: "draft",
-  tracking: "status",
+  tracking: "draft",
 };
 
 export function CaseCard({ record }: { record: CaseRecord }) {
@@ -35,7 +35,7 @@ export function CaseCard({ record }: { record: CaseRecord }) {
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        <StageBadge stage={record.stage} />
+        <StageBadge record={record} />
         <span
           className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold ${
             overdue

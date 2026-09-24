@@ -4,10 +4,9 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const TABS = [
-  { href: "intake", label: "1. Intake" },
-  { href: "extraction", label: "2. Documents" },
-  { href: "draft", label: "3. Demand draft" },
-  { href: "status", label: "4. Status" },
+  { href: "intake", label: "Client details" },
+  { href: "extraction", label: "Medical records" },
+  { href: "draft", label: "Demand letter" },
 ] as const;
 
 export function CaseTabs({ caseId }: { caseId: string }) {

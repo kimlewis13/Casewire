@@ -2,10 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCase, updateCase } from "@/lib/db";
 import type { CaseStage } from "@/lib/types";
 
+// Draft → Sent happens exclusively through /mail/send, since sending is
+// what actually moves the case into that stage (and sets mail state).
 const NEXT_STAGE: Record<CaseStage, CaseStage | null> = {
   intake: "extraction",
   extraction: "draft",
-  draft: "tracking",
+  draft: null,
   tracking: null,
 };
 
@@ -21,7 +23,11 @@ export async function POST(
 
   const next = NEXT_STAGE[existing.stage];
   if (!next) {
-    return NextResponse.json({ error: "Case is already in its final stage." }, { status: 400 });
+    const message =
+      existing.stage === "draft"
+        ? "Send the letter via certified mail to move this case forward."
+        : "Case is already in its final stage.";
+    return NextResponse.json({ error: message }, { status: 400 });
   }
 
   if (existing.stage === "intake" && !existing.intake.completed) {
@@ -32,13 +38,7 @@ export async function POST(
   }
   if (existing.stage === "extraction" && !existing.extraction.completed) {
     return NextResponse.json(
-      { error: "Run document extraction before continuing." },
-      { status: 400 }
-    );
-  }
-  if (existing.stage === "draft" && !existing.draft.letter) {
-    return NextResponse.json(
-      { error: "Generate the demand draft before continuing." },
+      { error: "Add the medical records before continuing." },
       { status: 400 }
     );
   }
@@ -47,8 +47,6 @@ export async function POST(
     ...c,
     stage: next,
     stageEnteredAt: new Date().toISOString(),
-    draft:
-      c.stage === "draft" ? { ...c.draft, completed: true } : c.draft,
   }));
 
   return NextResponse.json({ case: updated });

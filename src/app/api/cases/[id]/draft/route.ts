@@ -16,7 +16,7 @@ export async function POST(
   }
   if (!existing.extraction.completed) {
     return NextResponse.json(
-      { error: "Run document extraction before drafting." },
+      { error: "Add the medical records before drafting." },
       { status: 400 }
     );
   }

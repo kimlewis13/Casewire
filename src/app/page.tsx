@@ -1,30 +1,40 @@
 import { readDb } from "@/lib/db";
+import { sortActions } from "@/lib/actions";
 import { CaseCard } from "@/components/CaseCard";
+import { ActionQueue } from "@/components/ActionQueue";
 import { NewCaseForm } from "@/components/NewCaseForm";
 import { RunFollowUpCheck } from "@/components/RunFollowUpCheck";
 
 export default function DashboardPage() {
   const { cases } = readDb();
+  const queue = sortActions(cases);
 
   return (
     <div className="mx-auto max-w-6xl px-5 py-10">
       <div className="mb-8 flex flex-col gap-1">
         <span className="text-sm font-semibold uppercase tracking-widest text-accent-2">
-          Status tracker
+          Your queue
         </span>
         <h1 className="font-display text-4xl font-bold tracking-tight">
-          Every case, one spine.
+          Here&rsquo;s what needs you today.
         </h1>
         <p className="max-w-2xl text-muted">
-          Intake, document extraction, and demand drafting all read and write
-          the same case record. Nothing gets re-typed between stages — and a
-          case that sits too long gets flagged here, not silently forgotten.
+          The system tracks where every case sits so you don&rsquo;t have to
+          — nothing here got re-typed between client intake, the medical
+          records, and the demand letter.
         </p>
       </div>
 
-      <div className="mb-8 flex flex-wrap items-start justify-between gap-4">
+      <div className="mb-4 flex flex-wrap items-start justify-between gap-4">
         <NewCaseForm />
         <RunFollowUpCheck />
+      </div>
+
+      <ActionQueue items={queue} />
+
+      <div className="mb-4 mt-12 flex items-center justify-between">
+        <h2 className="font-display text-lg font-semibold">All cases</h2>
+        <span className="text-sm text-muted">{cases.length} total</span>
       </div>
 
       {cases.length === 0 ? (

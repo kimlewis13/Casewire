@@ -40,7 +40,7 @@ Notes: Orthopedic consult for continued lumbar pain. MRI of the lumbar spine rec
     id: "shah-slip-fall",
     name: "Shah — slip and fall (clean record)",
     description:
-      "3 entries, no gaps, no dangling referrals. Useful to show the extraction step doesn't just flag everything.",
+      "3 entries, no gaps, no dangling referrals. Useful to show the records review doesn't just flag everything.",
     text: `Date: 2024-02-01
 Provider: Lakeside Urgent Care — Dr. R. Kim
 Type: visit
