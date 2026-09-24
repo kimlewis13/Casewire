@@ -11,24 +11,32 @@ import { ChatTranscriptModal } from "@/components/ChatTranscriptModal";
 export function CaseRail({ record: initial }: { record: CaseRecord }) {
   const [record, setRecord] = useState(initial);
   const [showChat, setShowChat] = useState(false);
-  const [togglingId, setTogglingId] = useState<string | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [pendingFlagId, setPendingFlagId] = useState<string | null>(null);
+  const [noteText, setNoteText] = useState("");
+  const [noteError, setNoteError] = useState<string | null>(null);
   const router = useRouter();
 
-  async function toggleFlag(flagId: string, resolved: boolean) {
-    setTogglingId(flagId);
+  async function setFlagResolved(flagId: string, resolved: boolean, note?: string) {
+    setBusyId(flagId);
+    setNoteError(null);
     try {
       const res = await fetch(`/api/cases/${record.id}/extraction/flags/${flagId}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ resolved }),
+        body: JSON.stringify({ resolved, note }),
       });
       const data = await res.json();
-      if (res.ok) {
-        setRecord(data.case);
-        router.refresh();
+      if (!res.ok) {
+        setNoteError(data.error ?? "Couldn't save");
+        return;
       }
+      setRecord(data.case);
+      setPendingFlagId(null);
+      setNoteText("");
+      router.refresh();
     } finally {
-      setTogglingId(null);
+      setBusyId(null);
     }
   }
 
@@ -38,24 +46,20 @@ export function CaseRail({ record: initial }: { record: CaseRecord }) {
     record.extraction.flags.length > 0 &&
     record.mail.status === "not_sent";
 
-  let nextStepHref: string | null = null;
-  let nextStepLabel = "";
+  let nextStepLabel: string | null = null;
   if (!record.intake.completed) {
-    nextStepHref = `/case/${record.id}`;
     nextStepLabel = "Continue client intake";
   } else if (!record.extraction.completed) {
-    nextStepHref = `/case/${record.id}/extraction`;
     nextStepLabel = "Add medical records";
   } else if (!record.draft.letter) {
-    nextStepHref = `/case/${record.id}/draft`;
     nextStepLabel = "Generate demand letter";
   }
 
   return (
     <aside className="flex flex-col gap-4">
-      {nextStepHref && (
+      {nextStepLabel && (
         <Link
-          href={nextStepHref}
+          href={`/case/${record.id}`}
           className="rounded-lg bg-accent px-4 py-3 text-center text-sm font-semibold text-accent-foreground transition hover:brightness-110"
         >
           {nextStepLabel} →
@@ -73,17 +77,58 @@ export function CaseRail({ record: initial }: { record: CaseRecord }) {
           </p>
           <ul className="flex flex-col gap-2">
             {record.extraction.flags.map((flag) => (
-              <li key={flag.id} className="flex items-start gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={flag.resolved}
-                  disabled={togglingId === flag.id}
-                  onChange={(e) => toggleFlag(flag.id, e.target.checked)}
-                  className="mt-1"
-                />
-                <span className={flag.resolved ? "text-muted line-through" : ""}>
-                  {flag.message}
-                </span>
+              <li key={flag.id} className="text-sm">
+                <label className="flex items-start gap-2">
+                  <input
+                    type="checkbox"
+                    checked={flag.resolved}
+                    disabled={busyId === flag.id}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setPendingFlagId(flag.id);
+                        setNoteText("");
+                        setNoteError(null);
+                      } else {
+                        setFlagResolved(flag.id, false);
+                      }
+                    }}
+                    className="mt-1"
+                  />
+                  <span className={flag.resolved ? "text-muted line-through" : ""}>
+                    {flag.message}
+                  </span>
+                </label>
+
+                {pendingFlagId === flag.id && (
+                  <div className="mt-2 ml-6 flex flex-col gap-2 rounded-md border border-border bg-background p-3">
+                    <label className="text-xs font-semibold text-muted">
+                      What did you confirm?
+                    </label>
+                    <textarea
+                      value={noteText}
+                      onChange={(e) => setNoteText(e.target.value)}
+                      rows={2}
+                      placeholder="e.g. Called PT office — gap was an insurance authorization delay, not a lapse in care."
+                      className="rounded-md border border-border bg-surface px-2 py-1.5 text-sm outline-none focus:border-accent"
+                    />
+                    {noteError && <p className="text-xs text-danger">{noteError}</p>}
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setFlagResolved(flag.id, true, noteText)}
+                        disabled={busyId === flag.id || !noteText.trim()}
+                        className="rounded-md bg-foreground px-3 py-1.5 text-xs font-semibold text-background disabled:opacity-60"
+                      >
+                        {busyId === flag.id ? "Saving…" : "Confirm resolved"}
+                      </button>
+                      <button
+                        onClick={() => setPendingFlagId(null)}
+                        className="rounded-md px-3 py-1.5 text-xs font-semibold text-muted hover:text-foreground"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
               </li>
             ))}
           </ul>

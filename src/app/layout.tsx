@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Inter, Geist_Mono } from "next/font/google";
-import { NavBar } from "@/components/NavBar";
+import { Sidebar } from "@/components/Sidebar";
 import { ToastProvider } from "@/components/Toast";
 import { FollowUpPoller } from "@/components/FollowUpPoller";
 import "./globals.css";
@@ -27,11 +27,13 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="en"
       className={`${bodyFont.variable} ${monoFont.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-background text-foreground">
+      <body className="min-h-full bg-background text-foreground">
         <ToastProvider>
           <FollowUpPoller />
-          <NavBar />
-          <main className="flex-1">{children}</main>
+          <div className="flex min-h-screen">
+            <Sidebar />
+            <main className="min-w-0 flex-1">{children}</main>
+          </div>
         </ToastProvider>
       </body>
     </html>

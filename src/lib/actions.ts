@@ -12,16 +12,8 @@ export interface CaseAction {
   href: string;
 }
 
-const STAGE_TO_TAB: Record<CaseRecord["stage"], string> = {
-  intake: "",
-  extraction: "extraction",
-  draft: "draft",
-  tracking: "draft",
-};
-
 function caseHref(record: CaseRecord): string {
-  const tab = STAGE_TO_TAB[record.stage];
-  return tab ? `/case/${record.id}/${tab}` : `/case/${record.id}`;
+  return `/case/${record.id}`;
 }
 
 /**
@@ -34,10 +26,19 @@ export function getCaseAction(record: CaseRecord): CaseAction | null {
   const href = caseHref(record);
 
   if (isOverdue(record)) {
+    if (record.stage === "tracking" && record.mail.status === "sent") {
+      return {
+        urgency: "urgent",
+        title: `${record.clientName}'s letter hasn't been confirmed delivered`,
+        description: `Sent ${formatHoursInStage(hoursInStage(record))} ago, past its ${record.followUpWindowHours}h window — check the tracking number and mark it delivered if it's arrived.`,
+        ctaLabel: "Check delivery status",
+        href,
+      };
+    }
     return {
       urgency: "urgent",
       title: `${record.clientName} has stalled`,
-      description: `Sitting in ${record.stage === "tracking" ? "delivery" : "this stage"} for ${formatHoursInStage(
+      description: `Sitting in this stage for ${formatHoursInStage(
         hoursInStage(record)
       )}, past its ${record.followUpWindowHours}h follow-up window.`,
       ctaLabel: "Open case",

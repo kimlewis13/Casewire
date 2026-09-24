@@ -10,6 +10,13 @@ export function DraftView({ record }: { record: CaseRecord }) {
   const router = useRouter();
   const locked = current.mail.status !== "not_sent";
 
+  const hasNewerRecords =
+    !current.draft.generatedAt ||
+    (!!current.extraction.ranAt &&
+      new Date(current.extraction.ranAt).getTime() >
+        new Date(current.draft.generatedAt).getTime());
+  const regenerateDisabled = !!current.draft.letter && !hasNewerRecords;
+
   async function generate() {
     setGenerating(true);
     try {
@@ -46,8 +53,13 @@ export function DraftView({ record }: { record: CaseRecord }) {
         {!locked && (
           <button
             onClick={generate}
-            disabled={generating}
-            className="rounded-md border border-border bg-surface px-4 py-2 text-sm font-semibold transition hover:border-accent hover:text-accent disabled:opacity-60"
+            disabled={generating || regenerateDisabled}
+            title={
+              regenerateDisabled
+                ? "No new medical records since this letter was drafted — nothing to regenerate."
+                : undefined
+            }
+            className="rounded-md border border-border bg-surface px-4 py-2 text-sm font-semibold transition hover:border-accent hover:text-accent disabled:opacity-60 disabled:hover:border-border disabled:hover:text-foreground"
           >
             {generating
               ? "Drafting…"

@@ -1,7 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { randomUUID } from "crypto";
-import type { CaseRecord, CaseSource, Db, IntakeState, IntakeTurn, MailState } from "./types";
+import type { CaseNote, CaseRecord, CaseSource, Db, IntakeState, IntakeTurn, MailState } from "./types";
 import { INTAKE_FIELDS } from "./intakeScript";
 import { parseStructuredDocument, detectFlags } from "./extraction";
 import { findSampleDocument } from "./sampleDocuments";
@@ -86,6 +86,7 @@ function newCase(partial: {
   intake: IntakeState;
   sampleDocId?: string;
   mail?: Partial<MailState>;
+  notes?: CaseNote[];
 }): CaseRecord {
   const chronology = partial.sampleDocId
     ? parseStructuredDocument(findSampleDocument(partial.sampleDocId)!.text)
@@ -119,6 +120,7 @@ function newCase(partial: {
     },
     draft: { letter: null, reviewItems: [], generatedAt: null, completed: false },
     mail: { ...emptyMail(), ...partial.mail },
+    notes: partial.notes ?? [],
   };
 
   // The hard send gate requires every flag resolved — for seeded cases that
@@ -218,6 +220,15 @@ function seedDb(): Db {
         priorRepresentation: "No prior attorney contact.",
       }),
       sampleDocId: "reyes-rear-end",
+      notes: [
+        {
+          id: randomUUID(),
+          createdAt: hoursAgo(3),
+          author: "Paralegal - Alex K.",
+          text: "Left a voicemail for the client to confirm what happened during the PT gap — waiting on a callback before clearing that item.",
+          kind: "note",
+        },
+      ],
     }),
     // Stalled case sitting well past its follow-up window — this is the one
     // the tracker's follow-up check should flag and (if keys are configured) alert on.

@@ -77,6 +77,17 @@ export interface MailState {
   proofImageDataUrl: string | null;
 }
 
+export interface CaseNote {
+  id: string;
+  createdAt: string;
+  author: string;
+  text: string;
+  /** "note" = freeform; "action" = an auto-logged review-item resolution. */
+  kind: "note" | "action";
+  /** For kind "action": the flag message that was being addressed. */
+  actionLabel?: string;
+}
+
 export interface FollowUpLog {
   id: string;
   triggeredAt: string;
@@ -103,6 +114,7 @@ export interface CaseRecord {
   extraction: ExtractionState;
   draft: DraftState;
   mail: MailState;
+  notes: CaseNote[];
 }
 
 export interface Db {

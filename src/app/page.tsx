@@ -1,6 +1,6 @@
 import { readDb } from "@/lib/db";
 import { sortActions } from "@/lib/actions";
-import { CaseCard } from "@/components/CaseCard";
+import { CaseTable } from "@/components/CaseTable";
 import { ActionQueue } from "@/components/ActionQueue";
 import { NewCaseForm } from "@/components/NewCaseForm";
 
@@ -30,8 +30,10 @@ export default function DashboardPage() {
 
       <ActionQueue items={queue} />
 
-      <div className="mb-4 mt-12 flex items-center justify-between">
-        <h2 className="font-display text-lg font-semibold">All cases</h2>
+      <div className="mb-3 mt-12 flex items-center justify-between">
+        <h2 className="text-sm font-semibold uppercase tracking-widest text-muted">
+          All cases
+        </h2>
         <span className="text-sm text-muted">{cases.length} total</span>
       </div>
 
@@ -40,11 +42,7 @@ export default function DashboardPage() {
           No cases yet — start one above.
         </p>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {cases.map((c) => (
-            <CaseCard key={c.id} record={c} />
-          ))}
-        </div>
+        <CaseTable records={cases} />
       )}
     </div>
   );

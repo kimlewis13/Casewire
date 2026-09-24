@@ -1,5 +1,7 @@
+import { randomUUID } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { getCase, updateCase } from "@/lib/db";
+import type { CaseNote } from "@/lib/types";
 
 export async function POST(
   req: NextRequest,
@@ -8,6 +10,7 @@ export async function POST(
   const { id, flagId } = await ctx.params;
   const body = await req.json().catch(() => ({}));
   const resolved = Boolean(body.resolved);
+  const note = typeof body.note === "string" ? body.note.trim() : "";
 
   const existing = getCase(id);
   if (!existing) {
@@ -19,6 +22,27 @@ export async function POST(
       { status: 400 }
     );
   }
+  const flag = existing.extraction.flags.find((f) => f.id === flagId);
+  if (!flag) {
+    return NextResponse.json({ error: "Review item not found" }, { status: 404 });
+  }
+  if (resolved && !note) {
+    return NextResponse.json(
+      { error: "Add a note explaining what you confirmed before checking this off." },
+      { status: 400 }
+    );
+  }
+
+  const timelineEntry: CaseNote | null = resolved
+    ? {
+        id: randomUUID(),
+        createdAt: new Date().toISOString(),
+        author: existing.owner,
+        text: note,
+        kind: "action",
+        actionLabel: flag.message,
+      }
+    : null;
 
   const updated = updateCase(id, (c) => ({
     ...c,
@@ -26,6 +50,7 @@ export async function POST(
       ...c.extraction,
       flags: c.extraction.flags.map((f) => (f.id === flagId ? { ...f, resolved } : f)),
     },
+    notes: timelineEntry ? [timelineEntry, ...c.notes] : c.notes,
   }));
 
   return NextResponse.json({ case: updated });

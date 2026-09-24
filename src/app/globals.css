@@ -33,22 +33,9 @@
   --font-mono: var(--font-mono-geist);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0f1216;
-    --surface: #171b21;
-    --foreground: #e7e9ed;
-    --muted: #9aa3af;
-    --border: #2b313b;
-    --accent: #6f8fbd;
-    --accent-foreground: #0b1420;
-    --accent-2: #8fa6c7;
-    --accent-2-foreground: #0b1420;
-    --success: #4cae82;
-    --warning: #d99a3a;
-    --danger: #e17b73;
-  }
-}
+/* Intentionally locked to the light palette above — no dark-mode variant.
+   A demo sent to specific reviewers should render identically regardless
+   of their OS setting, not shift under them unreviewed. */
 
 * {
   border-color: var(--border);

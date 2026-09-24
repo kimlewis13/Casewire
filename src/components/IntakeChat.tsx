@@ -50,7 +50,6 @@ export function IntakeChat({ record }: { record: CaseRecord }) {
     try {
       const res = await fetch(`/api/cases/${record.id}/advance`, { method: "POST" });
       if (res.ok) {
-        router.push(`/case/${record.id}/extraction`);
         router.refresh();
       }
     } finally {

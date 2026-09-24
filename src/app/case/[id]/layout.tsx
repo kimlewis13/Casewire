@@ -1,7 +1,6 @@
 import { notFound } from "next/navigation";
 import { getCase } from "@/lib/db";
 import { CaseHeader } from "@/components/CaseHeader";
-import { CaseTabs } from "@/components/CaseTabs";
 import { CaseRail } from "@/components/CaseRail";
 
 export default async function CaseLayout({
@@ -17,14 +16,7 @@ export default async function CaseLayout({
       <CaseHeader record={record} />
 
       <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
-        <div>
-          {record.stage !== "intake" && (
-            <div className="mb-6 rounded-lg border border-border bg-surface p-1.5">
-              <CaseTabs caseId={id} stage={record.stage} />
-            </div>
-          )}
-          {children}
-        </div>
+        <div className="flex flex-col gap-6">{children}</div>
         <CaseRail record={record} />
       </div>
     </div>

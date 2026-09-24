@@ -1,4 +1,3 @@
-import Link from "next/link";
 import type { CaseRecord } from "@/lib/types";
 import {
   STAGE_DOT_CLASS,
@@ -19,14 +18,6 @@ export function CaseHeader({ record }: { record: CaseRecord }) {
 
   return (
     <div className="mb-6 flex flex-col gap-4 rounded-lg border border-border bg-surface p-5">
-      <nav className="text-sm text-muted">
-        <Link href="/" className="hover:text-foreground">
-          Dashboard
-        </Link>
-        <span className="mx-1.5">/</span>
-        <span className="text-foreground">{record.clientName}</span>
-      </nav>
-
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="font-display text-2xl font-semibold tracking-tight">

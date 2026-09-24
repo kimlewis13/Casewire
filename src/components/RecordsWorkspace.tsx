@@ -38,7 +38,6 @@ export function RecordsWorkspace({ record }: { record: CaseRecord }) {
     try {
       const res = await fetch(`/api/cases/${record.id}/advance`, { method: "POST" });
       if (res.ok) {
-        router.push(`/case/${record.id}/draft`);
         router.refresh();
       }
     } finally {
