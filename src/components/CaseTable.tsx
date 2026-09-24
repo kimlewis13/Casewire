@@ -1,27 +1,82 @@
+"use client";
+
+import { useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import type { CaseRecord } from "@/lib/types";
 import { StageBadge } from "@/components/StageBadge";
-import { formatHoursInStage } from "@/lib/format";
-import { hoursInStage, isOverdue } from "@/lib/followup";
+import { formatHoursInStage, STAGE_ORDER } from "@/lib/format";
+import { hoursInStage, isOverdue } from "@/lib/followupCore";
+
+type SortKey = "client" | "stage" | "owner" | "timeInStage" | "followUp";
+
+const COLUMNS: { key: SortKey; label: string }[] = [
+  { key: "client", label: "Client" },
+  { key: "stage", label: "Stage" },
+  { key: "owner", label: "Owner" },
+  { key: "timeInStage", label: "Time in stage" },
+  { key: "followUp", label: "Follow-up window" },
+];
 
 export function CaseTable({ records }: { records: CaseRecord[] }) {
+  const [sortKey, setSortKey] = useState<SortKey>("timeInStage");
+  const [asc, setAsc] = useState(false);
+  const router = useRouter();
+
+  function toggleSort(key: SortKey) {
+    if (key === sortKey) {
+      setAsc((a) => !a);
+    } else {
+      setSortKey(key);
+      setAsc(true);
+    }
+  }
+
+  const sorted = useMemo(() => {
+    const withValues = records.map((r) => ({
+      record: r,
+      client: r.clientName,
+      stage: STAGE_ORDER.indexOf(r.stage),
+      owner: r.owner,
+      timeInStage: hoursInStage(r),
+      followUp: r.followUpWindowHours,
+    }));
+    withValues.sort((a, b) => {
+      const va = a[sortKey];
+      const vb = b[sortKey];
+      const cmp = typeof va === "string" ? va.localeCompare(vb as string) : (va as number) - (vb as number);
+      return asc ? cmp : -cmp;
+    });
+    return withValues.map((v) => v.record);
+  }, [records, sortKey, asc]);
+
   return (
     <div className="overflow-hidden rounded-lg border border-border bg-surface">
       <table className="w-full text-left text-sm">
         <thead>
           <tr className="border-b border-border bg-background text-xs uppercase tracking-wide text-muted">
-            <th className="px-4 py-2.5 font-semibold">Client</th>
-            <th className="px-4 py-2.5 font-semibold">Stage</th>
-            <th className="px-4 py-2.5 font-semibold">Owner</th>
-            <th className="px-4 py-2.5 font-semibold">Time in stage</th>
-            <th className="px-4 py-2.5 font-semibold">Follow-up window</th>
+            {COLUMNS.map((col) => (
+              <th key={col.key} className="px-4 py-2.5 font-semibold">
+                <button
+                  onClick={() => toggleSort(col.key)}
+                  className="flex items-center gap-1 hover:text-foreground"
+                >
+                  {col.label}
+                  {sortKey === col.key && <span>{asc ? "↑" : "↓"}</span>}
+                </button>
+              </th>
+            ))}
           </tr>
         </thead>
         <tbody>
-          {records.map((record) => {
+          {sorted.map((record) => {
             const overdue = isOverdue(record);
             return (
-              <tr key={record.id} className="border-b border-border/60 last:border-0 hover:bg-background">
+              <tr
+                key={record.id}
+                onClick={() => router.push(`/case/${record.id}`)}
+                className="cursor-pointer border-b border-border/60 last:border-0 hover:bg-background"
+              >
                 <td className="px-4 py-3">
                   <Link href={`/case/${record.id}`} className="font-semibold hover:text-accent">
                     {record.clientName}

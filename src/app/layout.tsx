@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, Geist_Mono } from "next/font/google";
 import { Sidebar } from "@/components/Sidebar";
+import { TopBar } from "@/components/TopBar";
 import { ToastProvider } from "@/components/Toast";
 import { FollowUpPoller } from "@/components/FollowUpPoller";
 import "./globals.css";
@@ -32,7 +33,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           <FollowUpPoller />
           <div className="flex min-h-screen">
             <Sidebar />
-            <main className="min-w-0 flex-1">{children}</main>
+            <main className="min-w-0 flex-1">
+              <TopBar />
+              {children}
+            </main>
           </div>
         </ToastProvider>
       </body>

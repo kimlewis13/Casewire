@@ -56,6 +56,41 @@ Provider: Lakeside Physical Therapy — J. Rivera, DPT
 Type: treatment
 Notes: Wrist and hip mobility improving with home exercise program. Discharged from active treatment, cleared for normal activity.`,
   },
+  {
+    id: "webb-er-visit",
+    name: "Webb — Metro General ER (multi-vehicle collision)",
+    description:
+      "First of three separate provider records for this case — a deliberately messy, multi-system file. Plants a pre-existing-injury mention and an unresolved neurology referral.",
+    text: `Date: 2024-03-02
+Provider: Metro General Hospital ER — Dr. L. Whitfield
+Type: visit
+Notes: Patient involved in a multi-vehicle collision, transported by ambulance. Diagnosis: whiplash, right shoulder strain, mild concussion. Patient reports a prior injury to the left shoulder in 2021, unrelated and fully healed. Referred to neurology for concussion follow-up.
+---
+Date: 2024-03-02
+Provider: Metro General Hospital ER — Discharge Planning
+Type: referral
+Notes: Right shoulder pain persists on discharge exam. MRI of the right shoulder recommended. Referred to orthopedics. Discharged same day with instructions to follow up within one week.`,
+  },
+  {
+    id: "webb-imaging",
+    name: "Webb — Crestline Imaging Center (MRI report)",
+    description:
+      "Second record for the Webb case — a separate facility entirely, received weeks later. Resolves the shoulder imaging referral but plants a long gap.",
+    text: `Date: 2024-04-20
+Provider: Crestline Imaging Center — Dr. T. Nakamura, Radiology
+Type: imaging
+Notes: MRI of right shoulder performed at referring physician's request. Findings: partial rotator cuff tear, moderate. Report faxed to referring provider; no follow-up appointment was on file at the time of imaging.`,
+  },
+  {
+    id: "webb-orthopedic",
+    name: "Webb — Orthopedic Surgery Associates (specialist consult)",
+    description:
+      "Third record for the Webb case — yet another provider system. The neurology referral from the ER visit is never mentioned again anywhere in the file.",
+    text: `Date: 2024-05-06
+Provider: Dr. R. Alvarez — Orthopedic Surgery Associates
+Type: referral
+Notes: Consult for right shoulder rotator cuff tear per Crestline Imaging MRI. Recommends surgical repair; patient scheduling a second opinion before proceeding.`,
+  },
 ];
 
 export function findSampleDocument(id: string): SampleDocument | undefined {

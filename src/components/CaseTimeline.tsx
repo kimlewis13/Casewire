@@ -4,6 +4,22 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { CaseNote } from "@/lib/types";
 import { formatDateTime } from "@/lib/format";
+import { ROSTER } from "@/lib/people";
+import { useToast } from "@/components/Toast";
+
+function renderWithMentions(text: string) {
+  const pattern = new RegExp(`(@(?:${ROSTER.join("|")}))`, "gi");
+  const parts = text.split(pattern);
+  return parts.map((part, i) =>
+    pattern.test(part) ? (
+      <span key={i} className="font-semibold text-accent">
+        {part}
+      </span>
+    ) : (
+      <span key={i}>{part}</span>
+    )
+  );
+}
 
 export function CaseTimeline({
   caseId,
@@ -15,6 +31,7 @@ export function CaseTimeline({
   const [text, setText] = useState("");
   const [saving, setSaving] = useState(false);
   const router = useRouter();
+  const { showToast } = useToast();
 
   async function addNote() {
     if (!text.trim()) return;
@@ -25,8 +42,15 @@ export function CaseTimeline({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text }),
       });
+      const data = await res.json();
       if (res.ok) {
         setText("");
+        (data.mentions ?? []).forEach((m: { targetPerson: string }) =>
+          showToast({ title: `Tagged ${m.targetPerson}`, description: "They'll see it in the notes feed." })
+        );
+        if ((data.mentions ?? []).length > 0) {
+          window.dispatchEvent(new Event("casewire:mentions-updated"));
+        }
         router.refresh();
       }
     } finally {
@@ -38,7 +62,8 @@ export function CaseTimeline({
     <div className="rounded-lg border border-border bg-surface p-5">
       <h3 className="mb-1 font-display text-base font-semibold">Notes &amp; activity</h3>
       <p className="mb-4 text-sm text-muted">
-        A running log for this case — general notes, plus every review item as it&rsquo;s resolved.
+        A running log for this case — general notes, plus every review item as it&rsquo;s
+        resolved. Type @ and a name (e.g. @Alex K.) to tag someone.
       </p>
 
       <div className="mb-4 flex gap-2">
@@ -46,7 +71,7 @@ export function CaseTimeline({
           value={text}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && addNote()}
-          placeholder="Add a note…"
+          placeholder="Add a note… try @Morgan L."
           className="flex-1 rounded-md border border-border bg-background px-3 py-2 text-sm outline-none focus:border-accent"
         />
         <button
@@ -76,10 +101,10 @@ export function CaseTimeline({
                   <p className="text-xs font-semibold uppercase tracking-wide text-muted">
                     Resolution
                   </p>
-                  <p>{n.text}</p>
+                  <p>{renderWithMentions(n.text)}</p>
                 </>
               ) : (
-                <p>{n.text}</p>
+                <p>{renderWithMentions(n.text)}</p>
               )}
             </li>
           ))}

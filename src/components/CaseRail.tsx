@@ -7,19 +7,29 @@ import type { CaseRecord } from "@/lib/types";
 import { INTAKE_FIELDS } from "@/lib/intakeScript";
 import { MailPanel } from "@/components/MailPanel";
 import { ChatTranscriptModal } from "@/components/ChatTranscriptModal";
+import { ResolveNotePanel } from "@/components/ResolveNotePanel";
+import { InsuranceCard } from "@/components/InsuranceCard";
+import { useToast } from "@/components/Toast";
 
 export function CaseRail({ record: initial }: { record: CaseRecord }) {
   const [record, setRecord] = useState(initial);
+  const [prevInitial, setPrevInitial] = useState(initial);
   const [showChat, setShowChat] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
-  const [pendingFlagId, setPendingFlagId] = useState<string | null>(null);
-  const [noteText, setNoteText] = useState("");
-  const [noteError, setNoteError] = useState<string | null>(null);
+  const [resolvingFlagId, setResolvingFlagId] = useState<string | null>(null);
+  const [resolveError, setResolveError] = useState<string | null>(null);
+  const [advancing, setAdvancing] = useState(false);
   const router = useRouter();
+  const { showToast } = useToast();
+
+  if (initial !== prevInitial) {
+    setPrevInitial(initial);
+    setRecord(initial);
+  }
 
   async function setFlagResolved(flagId: string, resolved: boolean, note?: string) {
     setBusyId(flagId);
-    setNoteError(null);
+    setResolveError(null);
     try {
       const res = await fetch(`/api/cases/${record.id}/extraction/flags/${flagId}`, {
         method: "POST",
@@ -28,15 +38,30 @@ export function CaseRail({ record: initial }: { record: CaseRecord }) {
       });
       const data = await res.json();
       if (!res.ok) {
-        setNoteError(data.error ?? "Couldn't save");
+        setResolveError(data.error ?? "Couldn't save");
         return;
       }
       setRecord(data.case);
-      setPendingFlagId(null);
-      setNoteText("");
+      setResolvingFlagId(null);
+      (data.mentions ?? []).forEach((m: { targetPerson: string }) =>
+        showToast({ title: `Tagged ${m.targetPerson}`, description: "They'll see it in the notes feed." })
+      );
+      if ((data.mentions ?? []).length > 0) {
+        window.dispatchEvent(new Event("casewire:mentions-updated"));
+      }
       router.refresh();
     } finally {
       setBusyId(null);
+    }
+  }
+
+  async function advanceStage() {
+    setAdvancing(true);
+    try {
+      const res = await fetch(`/api/cases/${record.id}/advance`, { method: "POST" });
+      if (res.ok) router.refresh();
+    } finally {
+      setAdvancing(false);
     }
   }
 
@@ -45,26 +70,41 @@ export function CaseRail({ record: initial }: { record: CaseRecord }) {
     record.extraction.completed &&
     record.extraction.flags.length > 0 &&
     record.mail.status === "not_sent";
+  const resolvingFlag = record.extraction.flags.find((f) => f.id === resolvingFlagId);
 
-  let nextStepLabel: string | null = null;
+  // What's actionable right now: a scroll-to link for "go do the next thing,"
+  // or a real action button only when the action is an actual state change
+  // (advancing the case out of records review) rather than navigation.
+  let nextStep: { label: string; kind: "link" | "action" } | null = null;
   if (!record.intake.completed) {
-    nextStepLabel = "Continue client intake";
+    nextStep = { label: "Continue client intake", kind: "link" };
   } else if (!record.extraction.completed) {
-    nextStepLabel = "Add medical records";
+    nextStep = { label: "Add medical records", kind: "link" };
+  } else if (record.stage === "extraction") {
+    nextStep = { label: "Continue to demand letter", kind: "action" };
   } else if (!record.draft.letter) {
-    nextStepLabel = "Generate demand letter";
+    nextStep = { label: "Generate the demand letter", kind: "link" };
   }
 
   return (
     <aside className="flex flex-col gap-4">
-      {nextStepLabel && (
-        <Link
-          href={`/case/${record.id}`}
-          className="rounded-lg bg-accent px-4 py-3 text-center text-sm font-semibold text-accent-foreground transition hover:brightness-110"
-        >
-          {nextStepLabel} →
-        </Link>
-      )}
+      {nextStep &&
+        (nextStep.kind === "action" ? (
+          <button
+            onClick={advanceStage}
+            disabled={advancing}
+            className="rounded-lg bg-accent px-4 py-3 text-center text-sm font-semibold text-accent-foreground transition hover:brightness-110 disabled:opacity-60"
+          >
+            {advancing ? "Moving on…" : `${nextStep.label} →`}
+          </button>
+        ) : (
+          <Link
+            href={`#${!record.intake.completed ? "intake" : !record.extraction.completed ? "records" : "letter"}`}
+            className="rounded-lg bg-accent px-4 py-3 text-center text-sm font-semibold text-accent-foreground transition hover:brightness-110"
+          >
+            {nextStep.label} ↓
+          </Link>
+        ))}
 
       {showChecklist && (
         <div className="rounded-lg border border-warning/30 bg-warning/5 p-4">
@@ -77,17 +117,16 @@ export function CaseRail({ record: initial }: { record: CaseRecord }) {
           </p>
           <ul className="flex flex-col gap-2">
             {record.extraction.flags.map((flag) => (
-              <li key={flag.id} className="text-sm">
-                <label className="flex items-start gap-2">
+              <li key={flag.id}>
+                <label className="flex items-start gap-2 text-sm">
                   <input
                     type="checkbox"
                     checked={flag.resolved}
                     disabled={busyId === flag.id}
                     onChange={(e) => {
                       if (e.target.checked) {
-                        setPendingFlagId(flag.id);
-                        setNoteText("");
-                        setNoteError(null);
+                        setResolvingFlagId(flag.id);
+                        setResolveError(null);
                       } else {
                         setFlagResolved(flag.id, false);
                       }
@@ -98,37 +137,6 @@ export function CaseRail({ record: initial }: { record: CaseRecord }) {
                     {flag.message}
                   </span>
                 </label>
-
-                {pendingFlagId === flag.id && (
-                  <div className="mt-2 ml-6 flex flex-col gap-2 rounded-md border border-border bg-background p-3">
-                    <label className="text-xs font-semibold text-muted">
-                      What did you confirm?
-                    </label>
-                    <textarea
-                      value={noteText}
-                      onChange={(e) => setNoteText(e.target.value)}
-                      rows={2}
-                      placeholder="e.g. Called PT office — gap was an insurance authorization delay, not a lapse in care."
-                      className="rounded-md border border-border bg-surface px-2 py-1.5 text-sm outline-none focus:border-accent"
-                    />
-                    {noteError && <p className="text-xs text-danger">{noteError}</p>}
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => setFlagResolved(flag.id, true, noteText)}
-                        disabled={busyId === flag.id || !noteText.trim()}
-                        className="rounded-md bg-foreground px-3 py-1.5 text-xs font-semibold text-background disabled:opacity-60"
-                      >
-                        {busyId === flag.id ? "Saving…" : "Confirm resolved"}
-                      </button>
-                      <button
-                        onClick={() => setPendingFlagId(null)}
-                        className="rounded-md px-3 py-1.5 text-xs font-semibold text-muted hover:text-foreground"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </div>
-                )}
               </li>
             ))}
           </ul>
@@ -146,6 +154,12 @@ export function CaseRail({ record: initial }: { record: CaseRecord }) {
           }
         />
       )}
+
+      <InsuranceCard
+        caseId={record.id}
+        insurance={record.insurance}
+        onChange={(insurance) => setRecord((r) => ({ ...r, insurance }))}
+      />
 
       <div className="rounded-lg border border-border bg-surface p-4">
         <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-muted">
@@ -186,6 +200,16 @@ export function CaseRail({ record: initial }: { record: CaseRecord }) {
         <ChatTranscriptModal
           transcript={record.intake.transcript}
           onClose={() => setShowChat(false)}
+        />
+      )}
+
+      {resolvingFlag && (
+        <ResolveNotePanel
+          flagMessage={resolvingFlag.message}
+          busy={busyId === resolvingFlag.id}
+          error={resolveError}
+          onConfirm={(note) => setFlagResolved(resolvingFlag.id, true, note)}
+          onCancel={() => setResolvingFlagId(null)}
         />
       )}
     </aside>

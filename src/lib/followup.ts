@@ -3,15 +3,9 @@ import { Resend } from "resend";
 import type { CaseRecord, FollowUpLog } from "./types";
 import { getCase, updateCase } from "./db";
 import { stageDisplayLabel } from "./format";
+import { hoursInStage, isOverdue } from "./followupCore";
 
-export function hoursInStage(c: CaseRecord): number {
-  return (Date.now() - new Date(c.stageEnteredAt).getTime()) / (1000 * 60 * 60);
-}
-
-export function isOverdue(c: CaseRecord): boolean {
-  if (c.stage === "tracking" && c.mail.status === "delivered") return false;
-  return hoursInStage(c) > c.followUpWindowHours;
-}
+export { hoursInStage, isOverdue } from "./followupCore";
 
 export function alreadyAlertedThisStage(c: CaseRecord): boolean {
   const enteredAt = new Date(c.stageEnteredAt).getTime();

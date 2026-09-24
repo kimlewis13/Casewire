@@ -1,7 +1,17 @@
 import fs from "fs";
 import path from "path";
 import { randomUUID } from "crypto";
-import type { CaseNote, CaseRecord, CaseSource, Db, IntakeState, IntakeTurn, MailState } from "./types";
+import type {
+  CaseNote,
+  CaseRecord,
+  CaseSource,
+  Db,
+  InsuranceInfo,
+  IntakeState,
+  IntakeTurn,
+  MailState,
+  Mention,
+} from "./types";
 import { INTAKE_FIELDS } from "./intakeScript";
 import { parseStructuredDocument, detectFlags } from "./extraction";
 import { findSampleDocument } from "./sampleDocuments";
@@ -72,6 +82,16 @@ function emptyMail(): MailState {
   };
 }
 
+function emptyInsurance(): InsuranceInfo {
+  return {
+    atFaultCarrier: "",
+    claimNumber: "",
+    adjusterName: "",
+    healthInsurer: "",
+    lienExpected: false,
+  };
+}
+
 function newCase(partial: {
   id: string;
   clientName: string;
@@ -84,13 +104,15 @@ function newCase(partial: {
   followUpWindowHours: number;
   createdAt: string;
   intake: IntakeState;
-  sampleDocId?: string;
+  sampleDocIds?: string[];
   mail?: Partial<MailState>;
   notes?: CaseNote[];
+  insurance?: Partial<InsuranceInfo>;
 }): CaseRecord {
-  const chronology = partial.sampleDocId
-    ? parseStructuredDocument(findSampleDocument(partial.sampleDocId)!.text)
-    : [];
+  const docs = (partial.sampleDocIds ?? []).map((docId) => findSampleDocument(docId)!);
+  const chronology = docs
+    .flatMap((doc) => parseStructuredDocument(doc.text))
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   const flags = chronology.length ? detectFlags(chronology) : [];
 
   const record: CaseRecord = {
@@ -107,12 +129,7 @@ function newCase(partial: {
     followUpLog: [],
     intake: partial.intake,
     extraction: {
-      sourceDocumentName: partial.sampleDocId
-        ? findSampleDocument(partial.sampleDocId)!.name
-        : null,
-      sourceText: partial.sampleDocId
-        ? findSampleDocument(partial.sampleDocId)!.text
-        : null,
+      sources: docs.map((doc) => ({ id: randomUUID(), name: doc.name, addedAt: partial.createdAt })),
       chronology,
       flags,
       completed: chronology.length > 0,
@@ -121,6 +138,7 @@ function newCase(partial: {
     draft: { letter: null, reviewItems: [], generatedAt: null, completed: false },
     mail: { ...emptyMail(), ...partial.mail },
     notes: partial.notes ?? [],
+    insurance: { ...emptyInsurance(), ...partial.insurance },
   };
 
   // The hard send gate requires every flag resolved — for seeded cases that
@@ -198,7 +216,41 @@ function seedDb(): Db {
         treatmentStatus: "Discharged from active treatment as of the last physical therapy visit.",
         priorRepresentation: "No, this is the first attorney contact for this matter.",
       }),
-      sampleDocId: "shah-slip-fall",
+      sampleDocIds: ["shah-slip-fall"],
+      insurance: {
+        atFaultCarrier: "Meridian Mutual Insurance",
+        claimNumber: "MM-2024-88213",
+        adjusterName: "D. Farrow",
+      },
+    }),
+    // The centralization story: three separate provider systems, added one
+    // at a time, none of which talk to each other — the case this prototype
+    // is really for. Seeded with zero records yet so it can be built up live.
+    newCase({
+      id: "case-webb",
+      clientName: "Marcus Webb",
+      contactEmail: "marcus.webb@example.com",
+      contactPhone: "+15555550107",
+      owner: "Paralegal - You",
+      source: "chatbot",
+      stage: "extraction",
+      stageEnteredAt: hoursAgo(1),
+      followUpWindowHours: 72,
+      createdAt: hoursAgo(240),
+      intake: seededChatIntake({
+        incidentDate: "March 2, 2024",
+        liability: "Multi-vehicle collision on the interstate; the trailing driver was cited for following too closely.",
+        injurySeverity: "Whiplash, right shoulder strain confirmed as a partial rotator cuff tear, and a mild concussion.",
+        treatmentStatus: "Ongoing orthopedic care; considering surgical repair for the shoulder.",
+        priorRepresentation: "No prior attorney contact.",
+      }),
+      insurance: {
+        atFaultCarrier: "Coastal Auto Insurance",
+        claimNumber: "CAI-2024-55291",
+        adjusterName: "R. Ibanez",
+        healthInsurer: "Union Health Plan",
+        lienExpected: true,
+      },
     }),
     // Case mid-draft, not yet overdue.
     newCase({
@@ -219,13 +271,18 @@ function seedDb(): Db {
         treatmentStatus: "Currently in week five of a six-week physical therapy program, twice weekly.",
         priorRepresentation: "No prior attorney contact.",
       }),
-      sampleDocId: "reyes-rear-end",
+      sampleDocIds: ["reyes-rear-end"],
+      insurance: {
+        atFaultCarrier: "Granite State Mutual",
+        claimNumber: "GSM-4471029",
+        adjusterName: "P. Contreras",
+      },
       notes: [
         {
           id: randomUUID(),
           createdAt: hoursAgo(3),
           author: "Paralegal - Alex K.",
-          text: "Left a voicemail for the client to confirm what happened during the PT gap — waiting on a callback before clearing that item.",
+          text: "Left a voicemail for the client to confirm what happened during the PT gap — waiting on a callback before clearing that item. @Morgan L. can you follow up if I don't hear back by Friday?",
           kind: "note",
         },
       ],
@@ -250,7 +307,12 @@ function seedDb(): Db {
         treatmentStatus: "Completed physical therapy; final orthopedic follow-up confirmed healing.",
         priorRepresentation: "No prior attorney contact.",
       }),
-      sampleDocId: "reyes-rear-end",
+      sampleDocIds: ["reyes-rear-end"],
+      insurance: {
+        atFaultCarrier: "Pinecrest Delivery Co. (commercial auto)",
+        claimNumber: "PDC-991843",
+        adjusterName: "J. Marsh",
+      },
       mail: {
         status: "sent",
         sentAt: hoursAgo(10 * 24),
@@ -277,7 +339,12 @@ function seedDb(): Db {
         treatmentStatus: "Discharged from care; no further treatment needed.",
         priorRepresentation: "No prior attorney contact.",
       }),
-      sampleDocId: "shah-slip-fall",
+      sampleDocIds: ["shah-slip-fall"],
+      insurance: {
+        atFaultCarrier: "Coastal Auto Insurance",
+        claimNumber: "CAI-2023-10047",
+        adjusterName: "R. Ibanez",
+      },
       mail: {
         status: "delivered",
         sentAt: hoursAgo(5 * 24),
@@ -288,7 +355,7 @@ function seedDb(): Db {
     }),
   ];
 
-  return { cases };
+  return { cases, mentions: [] };
 }
 
 function ensureDb(): Db {
@@ -300,7 +367,9 @@ function ensureDb(): Db {
   }
   const raw = fs.readFileSync(DB_PATH, "utf-8");
   try {
-    return JSON.parse(raw) as Db;
+    const parsed = JSON.parse(raw) as Db;
+    if (!parsed.mentions) parsed.mentions = [];
+    return parsed;
   } catch {
     const seeded = seedDb();
     fs.writeFileSync(DB_PATH, JSON.stringify(seeded, null, 2));
@@ -331,6 +400,12 @@ export function updateCase(
   db.cases[idx] = updater(db.cases[idx]);
   writeDb(db);
   return db.cases[idx];
+}
+
+export function addMentions(mentions: Mention[]): void {
+  const db = readDb();
+  db.mentions = [...db.mentions, ...mentions];
+  writeDb(db);
 }
 
 export function createCase(input: {

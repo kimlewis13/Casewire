@@ -17,11 +17,6 @@ export default function DashboardPage() {
         <h1 className="font-display text-2xl font-semibold tracking-tight">
           Today&rsquo;s priorities
         </h1>
-        <p className="max-w-2xl text-sm text-muted">
-          The system tracks where every case sits, so nothing has to be
-          remembered — and nothing gets re-typed between intake, records, and
-          the letter.
-        </p>
       </div>
 
       <div className="mb-4">

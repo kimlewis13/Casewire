@@ -1,4 +1,5 @@
 import type { CaseRecord } from "./types";
+import { FIRM_NAME } from "./firm";
 
 function formatDate(iso: string | undefined): string {
   if (!iso) return "an unspecified date";
@@ -9,7 +10,7 @@ export function generateDemandLetter(caseRecord: CaseRecord): {
   letter: string;
   reviewItems: string[];
 } {
-  const { clientName, intake, extraction, owner } = caseRecord;
+  const { clientName, intake, extraction, owner, insurance } = caseRecord;
   const v = intake.values;
   const today = new Date().toISOString().slice(0, 10);
 
@@ -19,15 +20,27 @@ export function generateDemandLetter(caseRecord: CaseRecord): {
         .join("\n")
     : "  [No chronology on file yet — add the medical records first.]";
 
+  const sourcesLine =
+    extraction.sources.length > 0
+      ? `Records obtained from: ${extraction.sources.map((s) => s.name).join("; ")}.`
+      : "";
+
   const first = extraction.chronology[0];
   const last = extraction.chronology[extraction.chronology.length - 1];
 
+  const recipientLine =
+    insurance.adjusterName && insurance.atFaultCarrier
+      ? `${insurance.adjusterName}\n${insurance.atFaultCarrier}${
+          insurance.claimNumber ? `\nClaim No. ${insurance.claimNumber}` : ""
+        }`
+      : "To Whom It May Concern:";
+
   const letter = `RE: Demand for Settlement — ${clientName}
 Incident date: ${formatDate(v.incidentDate)}
-Prepared by: ${owner} · Casewire (prototype — not a real firm)
+Prepared by: ${owner} · ${FIRM_NAME} (prototype — not a real firm)
 Date drafted: ${today}
 
-To Whom It May Concern:
+${recipientLine}
 
 This office represents ${clientName} in connection with injuries sustained on ${formatDate(
     v.incidentDate
@@ -43,7 +56,7 @@ Medical treatment chronology${
     first && last ? ` (${first.date} through ${last.date})` : ""
   }:
 ${chronologyLines}
-
+${sourcesLine ? `\n${sourcesLine}\n` : ""}
 DAMAGES
 
 Based on the chronology above, ${clientName} has ${
@@ -56,7 +69,7 @@ We look forward to a prompt response and resolution of this matter.
 
 Sincerely,
 ${owner}
-Casewire — connected case prototype`;
+${FIRM_NAME}`;
 
   const reviewItems = [
     ...extraction.flags.map((f) => f.message),
@@ -64,6 +77,11 @@ Casewire — connected case prototype`;
     ...(v.priorRepresentation && /yes|yeah|yep/i.test(v.priorRepresentation)
       ? [
           "Client indicated prior contact with another attorney — confirm there is no conflicting representation before sending.",
+        ]
+      : []),
+    ...(insurance.lienExpected
+      ? [
+          `Confirm ${insurance.healthInsurer || "the health insurer"}'s subrogation lien amount before finalizing the demand figure.`,
         ]
       : []),
     ...(extraction.chronology.length === 0

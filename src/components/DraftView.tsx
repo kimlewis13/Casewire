@@ -6,8 +6,14 @@ import type { CaseRecord } from "@/lib/types";
 
 export function DraftView({ record }: { record: CaseRecord }) {
   const [current, setCurrent] = useState(record);
+  const [prevRecord, setPrevRecord] = useState(record);
   const [generating, setGenerating] = useState(false);
   const router = useRouter();
+
+  if (record !== prevRecord) {
+    setPrevRecord(record);
+    setCurrent(record);
+  }
   const locked = current.mail.status !== "not_sent";
 
   const hasNewerRecords =

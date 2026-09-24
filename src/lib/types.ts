@@ -50,13 +50,26 @@ export interface ExtractionFlag {
   resolved: boolean;
 }
 
+export interface RecordSource {
+  id: string;
+  name: string;
+  addedAt: string;
+}
+
 export interface ExtractionState {
-  sourceDocumentName: string | null;
-  sourceText: string | null;
+  sources: RecordSource[];
   chronology: ChronologyEntry[];
   flags: ExtractionFlag[];
   completed: boolean;
   ranAt: string | null;
+}
+
+export interface InsuranceInfo {
+  atFaultCarrier: string;
+  claimNumber: string;
+  adjusterName: string;
+  healthInsurer: string;
+  lienExpected: boolean;
 }
 
 export interface DraftState {
@@ -115,8 +128,21 @@ export interface CaseRecord {
   draft: DraftState;
   mail: MailState;
   notes: CaseNote[];
+  insurance: InsuranceInfo;
+}
+
+export interface Mention {
+  id: string;
+  createdAt: string;
+  caseId: string;
+  clientName: string;
+  mentionedBy: string;
+  targetPerson: string;
+  noteText: string;
+  read: boolean;
 }
 
 export interface Db {
   cases: CaseRecord[];
+  mentions: Mention[];
 }

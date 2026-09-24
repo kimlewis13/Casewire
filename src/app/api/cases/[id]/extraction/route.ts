@@ -1,3 +1,4 @@
+import { randomUUID } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { getCase, updateCase } from "@/lib/db";
 import { parseStructuredDocument, detectFlags } from "@/lib/extraction";
@@ -13,6 +14,12 @@ export async function POST(
   const existing = getCase(id);
   if (!existing) {
     return NextResponse.json({ error: "Case not found" }, { status: 404 });
+  }
+  if (existing.mail.status !== "not_sent") {
+    return NextResponse.json(
+      { error: "This case's letter has already gone out — records are locked." },
+      { status: 400 }
+    );
   }
 
   let text: string | undefined;
@@ -34,8 +41,8 @@ export async function POST(
     return NextResponse.json({ error: "No document provided" }, { status: 400 });
   }
 
-  const chronology = parseStructuredDocument(text);
-  if (chronology.length === 0) {
+  const newEntries = parseStructuredDocument(text);
+  if (newEntries.length === 0) {
     return NextResponse.json(
       {
         error:
@@ -44,14 +51,22 @@ export async function POST(
       { status: 422 }
     );
   }
-  const flags = detectFlags(chronology);
+
+  const mergedChronology = [...existing.extraction.chronology, ...newEntries].sort((a, b) => {
+    const da = new Date(a.date).getTime();
+    const db = new Date(b.date).getTime();
+    return (Number.isNaN(da) ? 0 : da) - (Number.isNaN(db) ? 0 : db);
+  });
+  const flags = detectFlags(mergedChronology);
 
   const updated = updateCase(id, (c) => ({
     ...c,
     extraction: {
-      sourceDocumentName: name,
-      sourceText: text!,
-      chronology,
+      sources: [
+        ...c.extraction.sources,
+        { id: randomUUID(), name: name!, addedAt: new Date().toISOString() },
+      ],
+      chronology: mergedChronology,
       flags,
       completed: true,
       ranAt: new Date().toISOString(),

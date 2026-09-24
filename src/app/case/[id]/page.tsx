@@ -17,7 +17,7 @@ export default async function CaseDetailPage({ params }: PageProps<"/case/[id]">
 
   return (
     <>
-      <section>
+      <section id="intake" className="scroll-mt-4">
         <h2 className="mb-4 font-display text-xl font-semibold">Client intake</h2>
         {record.stage === "intake" ? (
           record.source === "chatbot" ? (
@@ -32,7 +32,7 @@ export default async function CaseDetailPage({ params }: PageProps<"/case/[id]">
         )}
       </section>
 
-      <section>
+      <section id="records" className="scroll-mt-4">
         <h2 className="mb-4 font-display text-xl font-semibold">Medical records</h2>
         {stageIndex < 1 ? (
           <LockedSection message="Available once client intake is complete." />
@@ -41,7 +41,7 @@ export default async function CaseDetailPage({ params }: PageProps<"/case/[id]">
         )}
       </section>
 
-      <section>
+      <section id="letter" className="scroll-mt-4">
         <h2 className="mb-4 font-display text-xl font-semibold">Demand letter</h2>
         {stageIndex < 2 ? (
           <LockedSection message="Available once medical records are added." />
@@ -50,7 +50,7 @@ export default async function CaseDetailPage({ params }: PageProps<"/case/[id]">
         )}
       </section>
 
-      <section>
+      <section id="notes" className="scroll-mt-4">
         <CaseTimeline caseId={id} notes={record.notes} />
       </section>
     </>

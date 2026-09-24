@@ -32,6 +32,7 @@ const REFERRAL_ENTITIES = [
   "CT",
   "X-ray",
   "imaging",
+  "neurology",
   "specialist",
   "surgery",
   "EMG",

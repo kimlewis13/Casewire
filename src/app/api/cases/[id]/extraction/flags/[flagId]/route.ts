@@ -1,7 +1,8 @@
 import { randomUUID } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
-import { getCase, updateCase } from "@/lib/db";
-import type { CaseNote } from "@/lib/types";
+import { getCase, updateCase, addMentions } from "@/lib/db";
+import { findMentions } from "@/lib/people";
+import type { CaseNote, Mention } from "@/lib/types";
 
 export async function POST(
   req: NextRequest,
@@ -53,5 +54,19 @@ export async function POST(
     notes: timelineEntry ? [timelineEntry, ...c.notes] : c.notes,
   }));
 
-  return NextResponse.json({ case: updated });
+  const mentions: Mention[] = timelineEntry
+    ? findMentions(note).map((targetPerson) => ({
+        id: randomUUID(),
+        createdAt: timelineEntry.createdAt,
+        caseId: id,
+        clientName: existing.clientName,
+        mentionedBy: existing.owner,
+        targetPerson,
+        noteText: note,
+        read: false,
+      }))
+    : [];
+  if (mentions.length > 0) addMentions(mentions);
+
+  return NextResponse.json({ case: updated, mentions });
 }
