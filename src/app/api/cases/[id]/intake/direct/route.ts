@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCase, updateCase } from "@/lib/db";
 import { INTAKE_FIELDS } from "@/lib/intakeScript";
+import { computeStatuteOfLimitationsDeadline } from "@/lib/statuteOfLimitations";
 
 export async function POST(
   req: NextRequest,
@@ -37,6 +38,9 @@ export async function POST(
       ...c.intake,
       values: cleanValues,
       completed: true,
+      statuteOfLimitationsDeadline: computeStatuteOfLimitationsDeadline(
+        cleanValues.incidentDate ?? ""
+      ),
     },
   }));
 

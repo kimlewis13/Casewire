@@ -20,6 +20,8 @@ export interface IntakeState {
   transcript: IntakeTurn[];
   values: Record<string, string>;
   completed: boolean;
+  /** Computed from the disclosed incident date once intake completes — not asked as its own question. */
+  statuteOfLimitationsDeadline: string | null;
 }
 
 export type ChronologyEventType =

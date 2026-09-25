@@ -44,12 +44,14 @@ ${recipientLine}
 
 This office represents ${clientName} in connection with injuries sustained on ${formatDate(
     v.incidentDate
-  )}. ${v.liability ?? "[Liability narrative pending — complete intake.]"}
+  )}. ${v.incidentNarrative ?? v.liabilityDetail ?? "[Incident narrative pending — complete intake.]"} ${
+    v.liabilityDetail && v.incidentNarrative ? v.liabilityDetail : ""
+  }
 
 INJURIES AND TREATMENT
 
 ${clientName} sustained the following injuries: ${
-    v.injurySeverity ?? "[Injury detail pending — complete intake.]"
+    v.injuryDescription ?? "[Injury detail pending — complete intake.]"
   } ${v.treatmentStatus ? `Regarding ongoing care: ${v.treatmentStatus}` : ""}
 
 Medical treatment chronology${

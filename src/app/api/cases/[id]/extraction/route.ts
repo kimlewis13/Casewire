@@ -57,7 +57,7 @@ export async function POST(
     const db = new Date(b.date).getTime();
     return (Number.isNaN(da) ? 0 : da) - (Number.isNaN(db) ? 0 : db);
   });
-  const flags = detectFlags(mergedChronology);
+  const flags = detectFlags(mergedChronology, existing.intake.values.priorConditionSameArea);
 
   const updated = updateCase(id, (c) => ({
     ...c,

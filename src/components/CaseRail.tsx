@@ -165,6 +165,19 @@ export function CaseRail({ record: initial }: { record: CaseRecord }) {
         <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-muted">
           Case facts
         </p>
+        {record.intake.statuteOfLimitationsDeadline && (
+          <div className="mb-3 rounded-md border border-border bg-background p-2.5 text-sm">
+            <p className="text-xs font-semibold text-muted">Statute of limitations (est.)</p>
+            <p>
+              {new Date(record.intake.statuteOfLimitationsDeadline).toLocaleDateString(undefined, {
+                dateStyle: "medium",
+              })}
+            </p>
+            <p className="mt-0.5 text-xs text-muted">
+              Demo estimate — 2-year assumption from the incident date, confirm the actual jurisdiction.
+            </p>
+          </div>
+        )}
         <div className="flex flex-col gap-2 text-sm">
           {INTAKE_FIELDS.map((field) => {
             const value = record.intake.values[field.key];

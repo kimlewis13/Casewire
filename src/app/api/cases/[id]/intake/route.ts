@@ -2,6 +2,7 @@ import { randomUUID } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { getCase, updateCase } from "@/lib/db";
 import { INTAKE_FIELDS } from "@/lib/intakeScript";
+import { computeStatuteOfLimitationsDeadline } from "@/lib/statuteOfLimitations";
 import type { IntakeTurn } from "@/lib/types";
 
 function systemTurn(field: string | null, text: string, isFollowUp: boolean): IntakeTurn {
@@ -93,7 +94,7 @@ export async function POST(
     newTurns.push(
       systemTurn(
         null,
-        "That gives me what I need to build out the case record. You can continue to the medical records whenever you're ready.",
+        "Thank you for walking me through all of that — I know none of this is easy to talk about. Everything you've told me is already with our team, and a real person will follow up with you directly, usually within a few hours. You don't need to do anything else right now.",
         false
       )
     );
@@ -102,6 +103,10 @@ export async function POST(
     newTurns.push(systemTurn(next.key, next.question, false));
   }
 
+  const statuteOfLimitationsDeadline = completed
+    ? computeStatuteOfLimitationsDeadline(newValues.incidentDate ?? "")
+    : existing.intake.statuteOfLimitationsDeadline;
+
   const updated = updateCase(id, (c) => ({
     ...c,
     intake: {
@@ -109,6 +114,7 @@ export async function POST(
       transcript: [...c.intake.transcript, ...newTurns],
       values: newValues,
       completed,
+      statuteOfLimitationsDeadline,
     },
   }));
 

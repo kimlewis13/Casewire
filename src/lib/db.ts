@@ -16,6 +16,7 @@ import { INTAKE_FIELDS } from "./intakeScript";
 import { parseStructuredDocument, detectFlags } from "./extraction";
 import { findSampleDocument } from "./sampleDocuments";
 import { generateDemandLetter } from "./demand";
+import { computeStatuteOfLimitationsDeadline } from "./statuteOfLimitations";
 
 const DB_PATH = path.join(process.cwd(), "data", "db.json");
 
@@ -25,11 +26,23 @@ function emptyIntake(): IntakeState {
     transcript: [],
     values: {},
     completed: false,
+    statuteOfLimitationsDeadline: null,
   };
 }
 
 function hoursAgo(h: number): string {
   return new Date(Date.now() - h * 60 * 60 * 1000).toISOString();
+}
+
+/**
+ * Seeded incident dates are relative to "now" rather than fixed calendar
+ * dates, so the computed statute-of-limitations deadline always lands in
+ * the future no matter when this demo is actually opened.
+ */
+function monthsAgoDate(months: number): string {
+  const d = new Date();
+  d.setMonth(d.getMonth() - months);
+  return d.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
 }
 
 /** A completed intake with a synthetic Q&A transcript, for chatbot-sourced seed cases. */
@@ -58,6 +71,7 @@ function seededChatIntake(values: Record<string, string>): IntakeState {
     transcript,
     values,
     completed: true,
+    statuteOfLimitationsDeadline: computeStatuteOfLimitationsDeadline(values.incidentDate ?? ""),
   };
 }
 
@@ -68,6 +82,7 @@ function seededDirectIntake(values: Record<string, string>): IntakeState {
     transcript: [],
     values,
     completed: true,
+    statuteOfLimitationsDeadline: computeStatuteOfLimitationsDeadline(values.incidentDate ?? ""),
   };
 }
 
@@ -113,7 +128,9 @@ function newCase(partial: {
   const chronology = docs
     .flatMap((doc) => parseStructuredDocument(doc.text))
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-  const flags = chronology.length ? detectFlags(chronology) : [];
+  const flags = chronology.length
+    ? detectFlags(chronology, partial.intake.values.priorConditionSameArea)
+    : [];
 
   const record: CaseRecord = {
     id: partial.id,
@@ -197,10 +214,18 @@ function seedDb(): Db {
       followUpWindowHours: 72,
       createdAt: hoursAgo(240),
       intake: seededChatIntake({
-        incidentDate: "March 2, 2024",
-        liability: "Multi-vehicle collision on the interstate; the trailing driver was cited for following too closely.",
-        injurySeverity: "Whiplash, right shoulder strain confirmed as a partial rotator cuff tear, and a mild concussion.",
+        incidentDate: monthsAgoDate(4),
+        incidentNarrative:
+          "Multi-vehicle collision on the interstate during morning traffic — stopped in traffic and got hit from behind, which pushed the car into the vehicle ahead.",
+        liabilityDetail:
+          "The trailing driver was cited for following too closely; a state trooper responded and filed a report.",
+        injuryDescription:
+          "Whiplash, right shoulder strain confirmed as a partial rotator cuff tear, and a mild concussion.",
         treatmentStatus: "Ongoing orthopedic care; considering surgical repair for the shoulder.",
+        priorConditionSameArea: "No, nothing like that before.",
+        insuranceDetail:
+          "Has their own auto insurance, and believes the other driver is covered through Coastal Auto Insurance.",
+        claimFiled: "Yes, Coastal Auto Insurance already reached out and opened a claim.",
         priorRepresentation: "No prior attorney contact.",
       }),
       insurance: {
@@ -225,9 +250,17 @@ function seedDb(): Db {
       createdAt: hoursAgo(96),
       intake: seededChatIntake({
         incidentDate: "January 5, 2024",
-        liability: "Rear-ended at a stoplight by a distracted driver who admitted fault to responding police.",
-        injurySeverity: "Cervical strain and lumbar contusion, treated with physical therapy and an orthopedic referral.",
+        incidentNarrative:
+          "Stopped at a red light downtown when another car rear-ended the vehicle from behind.",
+        liabilityDetail:
+          "Rear-ended at a stoplight by a distracted driver who admitted fault to responding police.",
+        injuryDescription:
+          "Cervical strain and lumbar contusion, treated with physical therapy and an orthopedic referral.",
         treatmentStatus: "Currently in week five of a six-week physical therapy program, twice weekly.",
+        priorConditionSameArea: "No prior neck or back issues before this.",
+        insuranceDetail:
+          "Has personal auto insurance; the other driver is insured through Granite State Mutual.",
+        claimFiled: "Yes, Granite State Mutual opened a claim shortly after the accident.",
         priorRepresentation: "No prior attorney contact.",
       }),
       sampleDocIds: ["reyes-rear-end"],
@@ -261,9 +294,17 @@ function seedDb(): Db {
       createdAt: hoursAgo(40 * 24),
       intake: seededDirectIntake({
         incidentDate: "November 3, 2023",
-        liability: "Struck by a delivery van while crossing in a marked crosswalk with the signal in her favor.",
-        injurySeverity: "Fractured left tibia requiring surgical fixation, followed by months of physical therapy.",
+        incidentNarrative:
+          "Crossing the street in a marked crosswalk with the signal in her favor when a delivery van turned into her.",
+        liabilityDetail:
+          "Struck by a delivery van while crossing in a marked crosswalk with the signal in her favor.",
+        injuryDescription:
+          "Fractured left tibia requiring surgical fixation, followed by months of physical therapy.",
         treatmentStatus: "Completed physical therapy; final orthopedic follow-up confirmed healing.",
+        priorConditionSameArea: "No prior issues with that leg.",
+        insuranceDetail:
+          "Has employer health insurance; the van is a commercial vehicle insured through Pinecrest Delivery Co.",
+        claimFiled: "Yes, a claim was opened with Pinecrest Delivery Co.'s insurer.",
         priorRepresentation: "No prior attorney contact.",
       }),
       sampleDocIds: ["reyes-rear-end"],
@@ -293,9 +334,15 @@ function seedDb(): Db {
       createdAt: hoursAgo(60 * 24),
       intake: seededChatIntake({
         incidentDate: "August 12, 2023",
-        liability: "Sideswiped while merging by a driver who failed to check their blind spot.",
-        injurySeverity: "Shoulder sprain and mild concussion, resolved with six weeks of physical therapy.",
+        incidentNarrative:
+          "Merging onto the highway when another car sideswiped the vehicle from the next lane.",
+        liabilityDetail: "Sideswiped while merging by a driver who failed to check their blind spot.",
+        injuryDescription: "Shoulder sprain and mild concussion, resolved with six weeks of physical therapy.",
         treatmentStatus: "Discharged from care; no further treatment needed.",
+        priorConditionSameArea: "No prior shoulder issues.",
+        insuranceDetail:
+          "Has personal auto coverage; the other driver is insured through Coastal Auto Insurance.",
+        claimFiled: "Yes, a claim was opened with Coastal Auto Insurance.",
         priorRepresentation: "No prior attorney contact.",
       }),
       sampleDocIds: ["shah-slip-fall"],

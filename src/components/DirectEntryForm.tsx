@@ -5,18 +5,20 @@ import { useRouter } from "next/navigation";
 import type { CaseRecord } from "@/lib/types";
 
 const NARRATIVE_FIELDS = [
-  { key: "liability", label: "Liability detail" },
-  { key: "injurySeverity", label: "Injury severity" },
+  { key: "incidentNarrative", label: "What happened" },
+  { key: "injuryDescription", label: "Injuries" },
+  { key: "liabilityDetail", label: "Liability detail" },
   { key: "treatmentStatus", label: "Current treatment status" },
+  { key: "priorConditionSameArea", label: "Prior injury to the same area, if any" },
+  { key: "insuranceDetail", label: "Insurance and coverage" },
+  { key: "claimFiled", label: "Claim already filed with an insurer?" },
 ] as const;
 
 export function DirectEntryForm({ record }: { record: CaseRecord }) {
   const [incidentDate, setIncidentDate] = useState(record.intake.values.incidentDate ?? "");
-  const [narrative, setNarrative] = useState<Record<string, string>>({
-    liability: record.intake.values.liability ?? "",
-    injurySeverity: record.intake.values.injurySeverity ?? "",
-    treatmentStatus: record.intake.values.treatmentStatus ?? "",
-  });
+  const [narrative, setNarrative] = useState<Record<string, string>>(
+    Object.fromEntries(NARRATIVE_FIELDS.map((f) => [f.key, record.intake.values[f.key] ?? ""]))
+  );
   const [priorRep, setPriorRep] = useState<"yes" | "no" | "">("");
   const [priorRepDetail, setPriorRepDetail] = useState("");
   const [completed, setCompleted] = useState(record.intake.completed);

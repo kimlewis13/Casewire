@@ -56,6 +56,14 @@ function firstSentence(text: string): string {
   return (match ? match[0] : text).trim();
 }
 
+/** Whether an intake answer actually discloses something, as opposed to a bare denial. */
+function isPositiveDisclosure(text?: string): boolean {
+  if (!text) return false;
+  const trimmed = text.trim();
+  if (!trimmed) return false;
+  return !/^(no|none|nope|nothing|not that i|not really)\b/i.test(trimmed);
+}
+
 export function parseStructuredDocument(source: string): ChronologyEntry[] {
   const blocks = source
     .split(/^-{3,}\s*$/m)
@@ -90,7 +98,10 @@ export function parseStructuredDocument(source: string): ChronologyEntry[] {
   });
 }
 
-export function detectFlags(entries: ChronologyEntry[]): ExtractionFlag[] {
+export function detectFlags(
+  entries: ChronologyEntry[],
+  disclosedPriorCondition?: string
+): ExtractionFlag[] {
   const flags: ExtractionFlag[] = [];
   if (entries.length === 0) return flags;
 
@@ -117,6 +128,7 @@ export function detectFlags(entries: ChronologyEntry[]): ExtractionFlag[] {
   }
 
   // 2. Facts mentioned exactly once and never revisited (e.g. pre-existing conditions).
+  const clientDisclosed = isPositiveDisclosure(disclosedPriorCondition);
   for (const phrase of PRE_EXISTING_PHRASES) {
     const hits = entries.filter((e) =>
       e.raw.toLowerCase().includes(phrase)
@@ -126,16 +138,27 @@ export function detectFlags(entries: ChronologyEntry[]): ExtractionFlag[] {
       const sentence = entry.raw
         .split(/(?<=\.)\s+/)
         .find((s) => s.toLowerCase().includes(phrase));
-      flags.push({
-        id: randomUUID(),
-        type: "inconsistency",
-        severity: "high",
-        message: `${entry.date} (${entry.provider}) notes "${(
-          sentence ?? phrase
-        ).trim()}" but it is never addressed again in the record — confirm relevance to causation before drafting.`,
-        relatedEntryIds: [entry.id],
-        resolved: false,
-      });
+      const quoted = (sentence ?? phrase).trim();
+
+      flags.push(
+        clientDisclosed
+          ? {
+              id: randomUUID(),
+              type: "inconsistency",
+              severity: "low",
+              message: `${entry.date} (${entry.provider}) notes "${quoted}" — this matches what the client disclosed at intake ("${disclosedPriorCondition!.trim()}"), so it likely just needs to be reflected accurately in the letter rather than treated as a new issue.`,
+              relatedEntryIds: [entry.id],
+              resolved: false,
+            }
+          : {
+              id: randomUUID(),
+              type: "inconsistency",
+              severity: "high",
+              message: `${entry.date} (${entry.provider}) notes "${quoted}" but it is never addressed again in the record, and the client did not disclose any prior condition at intake — confirm relevance to causation and reconcile before drafting.`,
+              relatedEntryIds: [entry.id],
+              resolved: false,
+            }
+      );
       break; // one flag per document is enough signal; avoid duplicate noise
     }
   }

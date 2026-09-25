@@ -5,6 +5,23 @@ export interface SampleDocument {
   text: string;
 }
 
+/**
+ * The Webb documents' dates are computed relative to "now" (anchored to the
+ * same ~4-months-ago incident date used for Webb's seeded intake in db.ts)
+ * rather than hardcoded to a calendar date, so the gap-detection flags and
+ * the statute-of-limitations estimate both stay meaningful no matter when
+ * this demo is actually opened. The day offsets preserve the original
+ * design: a 49-day gap between the ER visit and the imaging follow-up
+ * (the flag this case is built to demonstrate), and 16 days from imaging
+ * to the orthopedic consult (under the 30-day gap threshold).
+ */
+function webbDate(daysFromIncident: number): string {
+  const d = new Date();
+  d.setMonth(d.getMonth() - 4);
+  d.setDate(d.getDate() + daysFromIncident);
+  return d.toISOString().slice(0, 10);
+}
+
 export const SAMPLE_DOCUMENTS: SampleDocument[] = [
   {
     id: "reyes-rear-end",
@@ -61,12 +78,12 @@ Notes: Wrist and hip mobility improving with home exercise program. Discharged f
     name: "Webb — Metro General ER (multi-vehicle collision)",
     description:
       "First of three separate provider records for this case — a deliberately messy, multi-system file. Plants a pre-existing-injury mention and an unresolved neurology referral.",
-    text: `Date: 2024-03-02
+    text: `Date: ${webbDate(0)}
 Provider: Metro General Hospital ER — Dr. L. Whitfield
 Type: visit
 Notes: Patient involved in a multi-vehicle collision, transported by ambulance. Diagnosis: whiplash, right shoulder strain, mild concussion. Patient reports a prior injury to the left shoulder in 2021, unrelated and fully healed. Referred to neurology for concussion follow-up.
 ---
-Date: 2024-03-02
+Date: ${webbDate(0)}
 Provider: Metro General Hospital ER — Discharge Planning
 Type: referral
 Notes: Right shoulder pain persists on discharge exam. MRI of the right shoulder recommended. Referred to orthopedics. Discharged same day with instructions to follow up within one week.`,
@@ -76,7 +93,7 @@ Notes: Right shoulder pain persists on discharge exam. MRI of the right shoulder
     name: "Webb — Crestline Imaging Center (MRI report)",
     description:
       "Second record for the Webb case — a separate facility entirely, received weeks later. Resolves the shoulder imaging referral but plants a long gap.",
-    text: `Date: 2024-04-20
+    text: `Date: ${webbDate(49)}
 Provider: Crestline Imaging Center — Dr. T. Nakamura, Radiology
 Type: imaging
 Notes: MRI of right shoulder performed at referring physician's request. Findings: partial rotator cuff tear, moderate. Report faxed to referring provider; no follow-up appointment was on file at the time of imaging.`,
@@ -86,7 +103,7 @@ Notes: MRI of right shoulder performed at referring physician's request. Finding
     name: "Webb — Orthopedic Surgery Associates (specialist consult)",
     description:
       "Third record for the Webb case — yet another provider system. The neurology referral from the ER visit is never mentioned again anywhere in the file.",
-    text: `Date: 2024-05-06
+    text: `Date: ${webbDate(65)}
 Provider: Dr. R. Alvarez — Orthopedic Surgery Associates
 Type: referral
 Notes: Consult for right shoulder rotator cuff tear per Crestline Imaging MRI. Recommends surgical repair; patient scheduling a second opinion before proceeding.`,
