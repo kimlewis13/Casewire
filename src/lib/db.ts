@@ -182,47 +182,6 @@ function seedDb(): Db {
       createdAt: hoursAgo(1),
       intake: emptyIntake(),
     }),
-    // A second in-progress intake, this one entered directly — shows the
-    // plain-form entry path alongside the chat path above.
-    newCase({
-      id: "case-whitfield",
-      clientName: "Sam Whitfield",
-      contactEmail: "sam.whitfield@example.com",
-      contactPhone: "+15555550106",
-      owner: "Paralegal - Alex K.",
-      source: "direct",
-      stage: "intake",
-      stageEnteredAt: hoursAgo(2),
-      followUpWindowHours: 48,
-      createdAt: hoursAgo(2),
-      intake: emptyIntake(),
-    }),
-    // Healthy case sitting in extraction, using the clean sample document.
-    newCase({
-      id: "case-shah",
-      clientName: "Priya Shah",
-      contactEmail: "priya.shah@example.com",
-      contactPhone: "+15555550102",
-      owner: "Paralegal - Alex K.",
-      source: "direct",
-      stage: "extraction",
-      stageEnteredAt: hoursAgo(6),
-      followUpWindowHours: 72,
-      createdAt: hoursAgo(30),
-      intake: seededDirectIntake({
-        incidentDate: "February 1, 2024",
-        liability: "Slipped on a wet floor at a grocery store entrance where no warning sign had been posted.",
-        injurySeverity: "Right wrist sprain and right hip contusion, confirmed by X-ray with no fracture.",
-        treatmentStatus: "Discharged from active treatment as of the last physical therapy visit.",
-        priorRepresentation: "No, this is the first attorney contact for this matter.",
-      }),
-      sampleDocIds: ["shah-slip-fall"],
-      insurance: {
-        atFaultCarrier: "Meridian Mutual Insurance",
-        claimNumber: "MM-2024-88213",
-        adjusterName: "D. Farrow",
-      },
-    }),
     // The centralization story: three separate provider systems, added one
     // at a time, none of which talk to each other — the case this prototype
     // is really for. Seeded with zero records yet so it can be built up live.

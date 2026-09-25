@@ -52,7 +52,20 @@ export function TopBar() {
           className="relative flex h-8 w-8 items-center justify-center rounded-md text-muted hover:bg-background hover:text-foreground"
           aria-label="Notifications"
         >
-          <span aria-hidden>🔔</span>
+          <svg
+            aria-hidden
+            width="18"
+            height="18"
+            viewBox="0 0 20 20"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.6"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M5 8a5 5 0 0 1 10 0c0 3.2 1 4.8 1.5 5.5H3.5C4 12.8 5 11.2 5 8Z" />
+            <path d="M8.2 16a1.8 1.8 0 0 0 3.6 0" />
+          </svg>
           {unread > 0 && (
             <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-danger px-1 text-[10px] font-bold text-white">
               {unread}
