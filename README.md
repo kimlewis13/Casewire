@@ -20,8 +20,8 @@ you're on — nothing is re-typed at a handoff:
 
 - Client intake fills in structured fields (incident date, liability,
   injury severity, treatment status, prior representation) — either
-  through a scripted chat, or a plain form for cases entered directly by
-  a paralegal (see "Two intake paths" below).
+  through a live, Claude-powered conversation, or a plain form for cases
+  entered directly by a paralegal (see "Two intake paths" below).
 - Medical records fills in a chronology and a "needs review" checklist.
 - The demand letter is generated **from** the intake fields and the
   chronology — not typed separately, and can't be sent until every
@@ -41,15 +41,24 @@ there's no manual refresh button anywhere in the app.
 
 ```bash
 npm install
+cp .env.example .env.local   # add your ANTHROPIC_API_KEY — required, see below
 npm run dev
 ```
 
-Open `http://localhost:3000`. Six seeded demo cases appear on the
-dashboard, spanning every stage and both intake paths, including one
-already sent and one already delivered. `case-reyes` ("Jordan Reyes") is
-the intentionally unfinished chat-intake case; `case-whitfield` ("Sam
-Whitfield") is the same, but for the direct-entry path — walk either one
-through the whole flow live.
+The client intake conversation is powered live by the Claude API — there's
+no scripted/regex fallback. Without `ANTHROPIC_API_KEY` set, the chatbot's
+opening message still shows (it's a static line, not model output), but
+every reply after that fails with a graceful "having trouble responding"
+message instead of a real conversation. Get a key at
+[console.anthropic.com](https://console.anthropic.com).
+
+The chatbot lands you on `/` first — that's the client-facing side of
+intake, presented as a walkthrough rather than an embedded widget (see
+"The chatbot prototype" below). `/dashboard` has the internal, paralegal
+side: five seeded demo cases spanning every stage and both intake paths,
+including one already sent and one already delivered. `case-reyes`
+("Jordan Reyes") is the intentionally unfinished chat-intake case — walk
+it through the whole flow live.
 
 Data lives in `data/db.json`, created automatically on first run and
 gitignored (it's runtime state, not source). Delete it (or `POST
@@ -57,15 +66,30 @@ gitignored (it's runtime state, not source). Delete it (or `POST
 
 ## Two intake paths
 
-A case is either **chatbot**-sourced (a scripted conversation, with a
-heuristic vagueness check — e.g. "it was bad" for an incident date has no
-digits, so it gets followed up on instead of recorded as-is) or
-**direct**-sourced (a paralegal fills in a plain form because they
+A case is either **chatbot**-sourced (a live conversation, driven by the
+Claude API rather than a script — the model decides what to ask next,
+extracts facts from however the client actually phrases things, and asks
+one natural follow-up only when an answer is genuinely too vague to use)
+or **direct**-sourced (a paralegal fills in a plain form because they
 already have the facts from a call). Both produce the same case-facts
 shape — they only differ in provenance. The persistent rail shows which
 one a case came from: chatbot cases get a clickable "view transcript"
 link for audit; direct-entry cases just say who entered them, since
 there's nothing else to show.
+
+## The chatbot prototype (`/`)
+
+This is the client-facing side of intake, and the first screen the app
+loads into. It's presented as a walkthrough, not a live embeddable
+widget — the page says so — since actually embedding it on a firm's own
+site is future scope, not something this prototype pretends to be. Finishing
+the conversation creates a real `CaseRecord` (source `chatbot`, stage
+`intake`) and drops a dashboard alert for it, same as any other new case;
+"Start a new conversation" just creates another one and doesn't persist
+across a refresh. The internal team's copy of the same conversation
+component (used on `/case/[id]` while a case is mid-intake) is otherwise
+identical, minus the public framing and the "continue" action a paralegal
+uses to move a case forward.
 
 ## The screens
 
@@ -176,7 +200,8 @@ database.
 ```
 src/lib/types.ts            shared CaseRecord shape — the data spine
 src/lib/db.ts                file-backed store (data/db.json) + seed data
-src/lib/intakeScript.ts     the five intake questions + vagueness rules
+src/lib/intakeScript.ts     the 11 intake fields the conversation must fill
+src/lib/llmIntake.ts        Claude-driven intake conversation engine
 src/lib/extraction.ts       structured-document parser + flag detection
 src/lib/demand.ts            demand letter template
 src/lib/followup.ts         overdue check + Resend/textbee integration

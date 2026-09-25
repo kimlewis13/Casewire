@@ -10,13 +10,7 @@ export interface IntakeTurn {
   createdAt: string;
 }
 
-export interface IntakeCursor {
-  fieldIndex: number;
-  awaitingFollowUp: boolean;
-}
-
 export interface IntakeState {
-  cursor: IntakeCursor;
   transcript: IntakeTurn[];
   values: Record<string, string>;
   completed: boolean;

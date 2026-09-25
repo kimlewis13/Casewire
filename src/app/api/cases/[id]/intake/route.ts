@@ -1,29 +1,39 @@
 import { randomUUID } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { getCase, updateCase } from "@/lib/db";
-import { INTAKE_FIELDS, interpolateQuestion } from "@/lib/intakeScript";
+import { INTAKE_FIELDS } from "@/lib/intakeScript";
 import { computeStatuteOfLimitationsDeadline } from "@/lib/statuteOfLimitations";
 import { parseContactDetails } from "@/lib/contactParsing";
+import { runIntakeTurn } from "@/lib/llmIntake";
 import type { IntakeTurn } from "@/lib/types";
 
-function systemTurn(field: string | null, text: string, isFollowUp: boolean): IntakeTurn {
+const OPENING_MESSAGE =
+  "I'm really sorry this happened to you. Before anything else — nothing you share here commits you to hiring us, and you'll get to talk with a real person soon. Can I start with your name?";
+
+const CLOSING_MESSAGE =
+  "Thank you for walking me through all of that — I know none of this is easy to talk about. Everything you've told me is already with our team, and a real person will follow up with you directly within 24 hours. You don't need to do anything else right now.";
+
+const TROUBLE_MESSAGE =
+  "Sorry — I'm having trouble responding right now. Please try sending that again in a moment.";
+
+function systemTurn(text: string): IntakeTurn {
   return {
     id: randomUUID(),
     role: "system",
-    field,
+    field: null,
     text,
-    isFollowUp,
+    isFollowUp: false,
     createdAt: new Date().toISOString(),
   };
 }
 
-function clientTurn(field: string, text: string, isFollowUp: boolean): IntakeTurn {
+function clientTurn(text: string): IntakeTurn {
   return {
     id: randomUUID(),
     role: "client",
-    field,
+    field: null,
     text,
-    isFollowUp,
+    isFollowUp: false,
     createdAt: new Date().toISOString(),
   };
 }
@@ -43,13 +53,9 @@ export async function POST(
 
   if (message === "__start__") {
     if (existing.intake.transcript.length === 0) {
-      const first = INTAKE_FIELDS[0];
       const updated = updateCase(id, (c) => ({
         ...c,
-        intake: {
-          ...c.intake,
-          transcript: [systemTurn(first.key, first.question, false)],
-        },
+        intake: { ...c.intake, transcript: [systemTurn(OPENING_MESSAGE)] },
       }));
       return NextResponse.json({ case: updated });
     }
@@ -60,49 +66,44 @@ export async function POST(
     return NextResponse.json({ case: existing });
   }
 
-  const { cursor } = existing.intake;
-  const field = INTAKE_FIELDS[cursor.fieldIndex];
-  if (!field) {
-    return NextResponse.json({ case: existing });
+  // Stateless API — resend the whole conversation each turn, plus the new
+  // message, so the model can extract facts from it and decide what to say
+  // next based on everything already known.
+  const history: { role: "user" | "assistant"; content: string }[] = [
+    ...existing.intake.transcript.map((t) => ({
+      role: t.role === "client" ? ("user" as const) : ("assistant" as const),
+      content: t.text,
+    })),
+    { role: "user" as const, content: message },
+  ];
+
+  let result;
+  try {
+    result = await runIntakeTurn(history, existing.intake.values);
+  } catch (err) {
+    console.error("LLM intake turn failed:", err);
+    const updated = updateCase(id, (c) => ({
+      ...c,
+      intake: {
+        ...c.intake,
+        transcript: [...c.intake.transcript, clientTurn(message), systemTurn(TROUBLE_MESSAGE)],
+      },
+    }));
+    return NextResponse.json({ case: updated });
   }
+
+  const newValues = { ...existing.intake.values, ...result.extracted };
+  // Trust the model's own completion signal, with a safety net in case it
+  // fills every field but forgets to call complete_intake.
+  const completed = result.complete || INTAKE_FIELDS.every((f) => newValues[f.key]?.trim());
 
   const newTurns: IntakeTurn[] = [
-    clientTurn(field.key, message, cursor.awaitingFollowUp),
+    clientTurn(message),
+    // Always show the same tested closing line on completion rather than
+    // whatever the model generated for its final turn, so that critical
+    // message never varies.
+    systemTurn(completed ? CLOSING_MESSAGE : result.reply || "Got it, thank you."),
   ];
-  const newValues = { ...existing.intake.values };
-  let nextFieldIndex = cursor.fieldIndex;
-  let nextAwaitingFollowUp = false;
-
-  if (!cursor.awaitingFollowUp) {
-    newValues[field.key] = message;
-    if (field.isVague(message)) {
-      newTurns.push(systemTurn(field.key, field.followUpQuestion(message), true));
-      nextAwaitingFollowUp = true;
-    } else {
-      nextFieldIndex = cursor.fieldIndex + 1;
-    }
-  } else {
-    const original = newValues[field.key] ?? "";
-    newValues[field.key] = field.mergeFollowUp
-      ? field.mergeFollowUp(original, message)
-      : message;
-    nextFieldIndex = cursor.fieldIndex + 1;
-  }
-
-  let completed = false;
-  if (nextFieldIndex >= INTAKE_FIELDS.length) {
-    completed = true;
-    newTurns.push(
-      systemTurn(
-        null,
-        "Thank you for walking me through all of that — I know none of this is easy to talk about. Everything you've told me is already with our team, and a real person will follow up with you directly within 24 hours. You don't need to do anything else right now.",
-        false
-      )
-    );
-  } else if (nextFieldIndex !== cursor.fieldIndex) {
-    const next = INTAKE_FIELDS[nextFieldIndex];
-    newTurns.push(systemTurn(next.key, interpolateQuestion(next.question, newValues), false));
-  }
 
   const statuteOfLimitationsDeadline = completed
     ? computeStatuteOfLimitationsDeadline(newValues.incidentDate ?? "")
@@ -124,7 +125,6 @@ export async function POST(
     ...c,
     ...recordPatch,
     intake: {
-      cursor: { fieldIndex: nextFieldIndex, awaitingFollowUp: nextAwaitingFollowUp },
       transcript: [...c.intake.transcript, ...newTurns],
       values: newValues,
       completed,

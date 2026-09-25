@@ -23,7 +23,6 @@ const DB_PATH = path.join(process.cwd(), "data", "db.json");
 
 export function emptyIntake(): IntakeState {
   return {
-    cursor: { fieldIndex: 0, awaitingFollowUp: false },
     transcript: [],
     values: {},
     completed: false,
@@ -54,7 +53,7 @@ function seededChatIntake(values: Record<string, string>): IntakeState {
       id: randomUUID(),
       role: "system",
       field: field.key,
-      text: interpolateQuestion(field.question, values),
+      text: interpolateQuestion(field.seedQuestion, values),
       isFollowUp: false,
       createdAt: hoursAgo(200 - i),
     });
@@ -68,7 +67,6 @@ function seededChatIntake(values: Record<string, string>): IntakeState {
     });
   });
   return {
-    cursor: { fieldIndex: INTAKE_FIELDS.length, awaitingFollowUp: false },
     transcript,
     values,
     completed: true,
@@ -79,7 +77,6 @@ function seededChatIntake(values: Record<string, string>): IntakeState {
 /** A completed intake with no transcript, for direct-entry seed cases. */
 function seededDirectIntake(values: Record<string, string>): IntakeState {
   return {
-    cursor: { fieldIndex: INTAKE_FIELDS.length, awaitingFollowUp: false },
     transcript: [],
     values,
     completed: true,

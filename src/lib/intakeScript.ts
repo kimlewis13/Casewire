@@ -1,16 +1,10 @@
-export interface IntakeField {
+export interface IntakeFieldDef {
   key: string;
   label: string;
-  question: string;
-  followUpQuestion: (answer: string) => string;
-  isVague: (answer: string) => boolean;
-  /**
-   * How to fold a follow-up answer into the recorded value. Defaults to
-   * replacing the vague original outright (e.g. a date). Narrative fields
-   * override this to append the clarification instead of discarding the
-   * original context.
-   */
-  mergeFollowUp?: (original: string, followUp: string) => string;
+  /** Used only to build a plausible transcript for seeded demo cases. */
+  seedQuestion: string;
+  /** Given to the model as the field description in the fact-extraction tool. */
+  description: string;
   /**
    * Direct-entry cases already have the client's name and contact info from
    * when the case was created — the paralegal shouldn't be asked to re-enter
@@ -19,173 +13,92 @@ export interface IntakeField {
   skipForDirectEntry?: boolean;
 }
 
-const appendFollowUp = (original: string, followUp: string) =>
-  `${original} ${followUp}`;
-
-const VAGUE_WORDS = [
-  "bad",
-  "not good",
-  "hurt",
-  "hurts",
-  "hurting",
-  "pain",
-  "sore",
-  "fine",
-  "okay",
-  "ok",
-  "a while",
-  "a bit",
-  "some",
-  "kind of",
-  "sort of",
-  "not sure",
-  "maybe",
-  "i think",
-];
-
-const HEDGE_ONLY = /^\s*(maybe|kind of|sort of|not sure|i think|possibly|i guess)\.?\s*$/i;
-const RELATIVE_TIME = /\b(today|yesterday|last (week|month|year)|this (week|month)|(a|one|two|three|four|five|six|seven|eight|nine|ten)\s+(day|week|month|year)s?\s+ago)\b/i;
-const YES_NO_ONLY = /^\s*(yes|no|yeah|nope|yep|nah)\.?\s*$/i;
-const BARE_YES = /^\s*(yes|yeah|yep)\.?\s*$/i;
-
-function wordCount(answer: string): number {
-  return answer.trim().split(/\s+/).filter(Boolean).length;
-}
-
-function containsVagueWord(answer: string): boolean {
-  const lower = answer.toLowerCase();
-  return VAGUE_WORDS.some((w) => lower.includes(w));
-}
-
-export const INTAKE_FIELDS: IntakeField[] = [
+export const INTAKE_FIELDS: IntakeFieldDef[] = [
   {
     key: "clientName",
     label: "Name",
-    question:
+    seedQuestion:
       "I'm really sorry this happened to you. Before anything else — nothing you share here commits you to hiring us, and you'll get to talk with a real person soon. Can I start with your name?",
-    isVague: (answer) => /^(hi|hey|hello|yo)\.?$/i.test(answer.trim()) || !answer.trim(),
-    followUpQuestion: () => "Sorry — I meant your name, so I know who I'm talking with!",
+    description: "The client's full name, as given.",
     skipForDirectEntry: true,
   },
   {
     key: "incidentDate",
     label: "Incident date",
-    question: "Thanks, {name}. Can you tell me roughly when this happened?",
-    isVague: (answer) =>
-      (!/\d/.test(answer) && !RELATIVE_TIME.test(answer)) || wordCount(answer) <= 2,
-    followUpQuestion: () =>
-      "No worries if you don't remember the exact date — even a rough idea, like a month, or \"about three weeks ago,\" works completely fine.",
+    seedQuestion: "Thanks, {name}. Can you tell me roughly when this happened?",
+    description:
+      "The date of the incident, resolved to an exact ISO 8601 date (YYYY-MM-DD) using today's date given in context. If they give a relative answer like \"about two weeks ago\" or \"yesterday,\" compute the actual date yourself rather than recording the relative phrase.",
   },
   {
     key: "incidentNarrative",
     label: "What happened",
-    question:
+    seedQuestion:
       "Thank you. Can you walk me through what happened — where you were, and how it occurred? Take whatever time you need.",
-    isVague: (answer) =>
-      wordCount(answer) < 10 ||
-      !/(hit|rear|ran|red light|speeding|slip|fell|fall|failed|distracted|drove|driving|left turn|stop|wet floor|ice|dog|attack|work|ladder|machine)/i.test(
-        answer
-      ),
-    followUpQuestion: () =>
-      "However much you remember is okay — for example, were you driving, walking, at work, or somewhere else when it happened?",
-    mergeFollowUp: appendFollowUp,
+    description:
+      "What happened and where — the mechanism of the incident (e.g. rear-ended, slipped on ice, struck by a vehicle while walking).",
   },
   {
     key: "injuryDescription",
     label: "Injuries",
-    question:
+    seedQuestion:
       "That sounds like a lot to deal with. Can you tell me about your injuries — what happened to you physically, and how you've been feeling since?",
-    isVague: (answer) =>
-      wordCount(answer) < 8 ||
-      (containsVagueWord(answer) &&
-        !/(fracture|surgery|sprain|strain|concussion|tear|herniat|dislocat|laceration|broke|broken|pain|ache)/i.test(
-          answer
-        )),
-    followUpQuestion: () =>
-      "However it's showing up is fine to describe in your own words — is it pain, trouble moving, something a doctor pointed out, anything like that?",
-    mergeFollowUp: appendFollowUp,
+    description: "Their injuries — what's hurt, and how it's affected them.",
   },
   {
     key: "liabilityDetail",
     label: "Liability detail",
-    question:
+    seedQuestion:
       "Before we go any further, I want you to know something important: we work on contingency, which means there's no cost to you today, and you wouldn't owe us anything unless we actually win your case. Now — do you know if anyone else was involved, like another driver or a business, and has anyone said anything about whose fault this was?",
-    isVague: (answer) =>
-      wordCount(answer) < 10 ||
-      !/(hit|rear|ran|red light|speeding|slip|fell|fall|failed|distracted|drove|driving|left|turn|stop|wet floor|ice|dog|attack|negligen|fault)/i.test(
-        answer
-      ),
-    followUpQuestion: () =>
-      "Even something small someone said at the scene helps — and if a police or incident report was filed, that's useful to know too.",
-    mergeFollowUp: appendFollowUp,
+    description:
+      "Who else was involved and any indication of fault — a citation, an admission at the scene, a police report.",
   },
   {
     key: "treatmentStatus",
     label: "Current treatment status",
-    question:
+    seedQuestion:
       "Have you been able to see a doctor for this yet? Wherever it was — an ER, urgent care, your regular doctor — and are you still being treated, or has that finished up?",
-    isVague: (answer) => YES_NO_ONLY.test(answer) || wordCount(answer) < 5,
-    followUpQuestion: () =>
-      "Roughly how many appointments so far, with which providers, and is there anything else scheduled?",
-    mergeFollowUp: appendFollowUp,
+    description:
+      "Whether they've seen a doctor, which providers, and whether treatment is ongoing or finished.",
   },
   {
     key: "priorConditionSameArea",
     label: "Prior condition, same area",
-    question:
+    seedQuestion:
       "One more thing that's genuinely helpful to know upfront — not a trick question: had you had any injury or issue with that same part of your body before this happened?",
-    isVague: (answer) => HEDGE_ONLY.test(answer),
-    followUpQuestion: () =>
-      "That's really helpful either way — can you say a bit more, like roughly when that was and whether it had fully healed before this happened?",
-    mergeFollowUp: appendFollowUp,
+    description:
+      "Whether they had any prior injury or condition to the same body part before this incident — record their answer whether it's a clear no or a detailed yes.",
   },
   {
     key: "insuranceDetail",
     label: "Insurance and coverage",
-    question:
+    seedQuestion:
       "Do you have insurance you'd be using for this — auto or health — and if you happen to know anything about the other party's insurance, that helps too.",
-    isVague: (answer) => wordCount(answer) < 5,
-    followUpQuestion: () =>
-      "No worries if you're not sure of the details — even just knowing whether you think you're covered helps for now.",
-    mergeFollowUp: appendFollowUp,
+    description: "Their own insurance coverage, and the other party's insurance if known.",
   },
   {
     key: "claimFiled",
     label: "Claim already filed",
-    question:
+    seedQuestion:
       "Has a claim already been opened with any insurance company, either yours or theirs? If someone's already reached out to you about this, that's good to know too.",
-    isVague: (answer) => BARE_YES.test(answer),
-    followUpQuestion: () =>
-      "Do you know who reached out, and what they've asked you so far?",
-    mergeFollowUp: appendFollowUp,
+    description: "Whether an insurance claim has already been opened by either side, and by whom.",
   },
   {
     key: "priorRepresentation",
     label: "Prior representation",
-    question:
+    seedQuestion:
       "One more thing about your case — have you already spoken with another attorney about this, or signed anything with another firm?",
-    isVague: (answer) => YES_NO_ONLY.test(answer),
-    followUpQuestion: (answer) =>
-      /^\s*(yes|yeah|yep)/i.test(answer)
-        ? "Thanks for telling me — is that still ongoing, or did it end? Did you sign a retainer or any settlement paperwork? This won't cause a problem, I just need to know where things stand."
-        : "Good to know — that keeps things simple. Just to confirm for the file: no prior consultations, retainers, or settlement talks with anyone else?",
+    description: "Whether they've already spoken with or signed anything with another attorney.",
   },
   {
     key: "contactDetails",
     label: "Contact & city",
-    question:
+    seedQuestion:
       "Last thing — so someone from our team can follow up with you within 24 hours, what's the best phone number and email to reach you at, and what city are you in?",
-    isVague: (answer) => wordCount(answer) < 5,
-    followUpQuestion: () =>
-      "No problem — could you give me at least a phone number or email, and the city you're in?",
-    mergeFollowUp: appendFollowUp,
+    description:
+      "Their phone number, email, and the city they're in — capture however they give it, no need to reformat.",
     skipForDirectEntry: true,
   },
 ];
-
-export function getField(index: number): IntakeField | undefined {
-  return INTAKE_FIELDS[index];
-}
 
 export function interpolateQuestion(text: string, values: Record<string, string>): string {
   const firstName = values.clientName?.trim().split(/\s+/)[0];
