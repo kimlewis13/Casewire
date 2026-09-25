@@ -69,8 +69,17 @@ export async function POST(
   // Stateless API — resend the whole conversation each turn, plus the new
   // message, so the model can extract facts from it and decide what to say
   // next based on everything already known.
+  //
+  // The transcript always starts with the static opening line (role
+  // "system", mapped to "assistant" below) — but the Messages API requires
+  // `messages` to start with a "user" turn, so that leading greeting has to
+  // be dropped rather than sent as history. It's boilerplate the model
+  // doesn't need repeated back to it anyway.
+  const firstClientIdx = existing.intake.transcript.findIndex((t) => t.role === "client");
+  const relevantTranscript =
+    firstClientIdx === -1 ? [] : existing.intake.transcript.slice(firstClientIdx);
   const history: { role: "user" | "assistant"; content: string }[] = [
-    ...existing.intake.transcript.map((t) => ({
+    ...relevantTranscript.map((t) => ({
       role: t.role === "client" ? ("user" as const) : ("assistant" as const),
       content: t.text,
     })),
