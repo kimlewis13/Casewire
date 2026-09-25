@@ -6,6 +6,7 @@ import { RecordsWorkspace } from "@/components/RecordsWorkspace";
 import { DraftView } from "@/components/DraftView";
 import { CaseTimeline } from "@/components/CaseTimeline";
 import { LockedSection } from "@/components/LockedSection";
+import { RecordsAlertBanner } from "@/components/RecordsAlertBanner";
 import { STAGE_ORDER } from "@/lib/format";
 
 export default async function CaseDetailPage({ params }: PageProps<"/case/[id]">) {
@@ -17,6 +18,8 @@ export default async function CaseDetailPage({ params }: PageProps<"/case/[id]">
 
   return (
     <>
+      <RecordsAlertBanner flags={record.extraction.flags} />
+
       <section id="intake" className="scroll-mt-4">
         <h2 className="mb-4 font-display text-xl font-semibold">Client intake</h2>
         {record.stage === "intake" ? (

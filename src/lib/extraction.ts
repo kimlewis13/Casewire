@@ -120,7 +120,7 @@ export function detectFlags(
         id: randomUUID(),
         type: "gap",
         severity: diffDays > 60 ? "high" : "medium",
-        message: `${diffDays}-day gap in treatment between ${prev.date} (${prev.provider}) and ${curr.date} (${curr.provider}) — confirm whether care actually lapsed or records are missing.`,
+        message: `Reach out to the client to ask what happened between ${prev.date} (${prev.provider}) and ${curr.date} (${curr.provider}) — that's a ${diffDays}-day gap with nothing on file. Find out whether care actually stopped, or a provider's records just haven't come in yet.`,
         relatedEntryIds: [prev.id, curr.id],
         resolved: false,
       });
@@ -146,7 +146,7 @@ export function detectFlags(
               id: randomUUID(),
               type: "inconsistency",
               severity: "low",
-              message: `${entry.date} (${entry.provider}) notes "${quoted}" — this matches what the client disclosed at intake ("${disclosedPriorCondition!.trim()}"), so it likely just needs to be reflected accurately in the letter rather than treated as a new issue.`,
+              message: `${entry.provider} notes "${quoted}" on ${entry.date} — this matches what the client already told us at intake ("${disclosedPriorCondition!.trim()}"), so just make sure it's reflected accurately in the letter. No need to chase this further.`,
               relatedEntryIds: [entry.id],
               resolved: false,
             }
@@ -154,7 +154,7 @@ export function detectFlags(
               id: randomUUID(),
               type: "inconsistency",
               severity: "high",
-              message: `${entry.date} (${entry.provider}) notes "${quoted}" but it is never addressed again in the record, and the client did not disclose any prior condition at intake — confirm relevance to causation and reconcile before drafting.`,
+              message: `Call the client to ask about this — ${entry.provider} notes "${quoted}" on ${entry.date}, but they never mentioned it at intake and it's never addressed again in the record. Find out what it was, whether it had fully resolved, and whether it's relevant here before the letter goes out.`,
               relatedEntryIds: [entry.id],
               resolved: false,
             }
@@ -186,9 +186,9 @@ export function detectFlags(
         id: randomUUID(),
         type: "missing",
         severity: "medium",
-        message: `${entity} was ${
+        message: `Follow up with the client or ${entry.provider} to confirm whether the ${entity} ${
           lowerRaw.includes("recommended") ? "recommended" : "ordered"
-        } on ${entry.date} (${entry.provider}) but no results or follow-up appear anywhere later in the record — confirm whether it was completed.`,
+        } on ${entry.date} actually happened — no results or follow-up show up anywhere later in the record.`,
         relatedEntryIds: [entry.id],
         resolved: false,
       });

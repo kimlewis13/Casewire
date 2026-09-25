@@ -41,10 +41,13 @@ export function RecordsWorkspace({ record }: { record: CaseRecord }) {
     }
   }
 
-  const { chronology, sources } = current.extraction;
+  const { chronology, sources, flags } = current.extraction;
   const providers = new Set(chronology.map((e) => e.provider)).size;
   const addedSourceIds = new Set(
     sources.map((s) => SAMPLE_DOCUMENTS.find((d) => d.name === s.name)?.id).filter(Boolean)
+  );
+  const flaggedEntryIds = new Set(
+    flags.filter((f) => !f.resolved).flatMap((f) => f.relatedEntryIds)
   );
 
   return (
@@ -128,7 +131,10 @@ export function RecordsWorkspace({ record }: { record: CaseRecord }) {
       )}
 
       {current.extraction.completed && (
-        <details className="rounded-lg border border-border bg-surface p-5">
+        <details
+          open={flaggedEntryIds.size > 0}
+          className="rounded-lg border border-border bg-surface p-5"
+        >
           <summary className="cursor-pointer select-none text-sm font-semibold text-muted hover:text-foreground">
             View full chronology
           </summary>
@@ -136,6 +142,7 @@ export function RecordsWorkspace({ record }: { record: CaseRecord }) {
             <table className="w-full text-left text-sm">
               <thead>
                 <tr className="border-b border-border text-xs uppercase tracking-wide text-muted">
+                  <th className="py-2 pr-3" />
                   <th className="py-2 pr-3">Date</th>
                   <th className="py-2 pr-3">Provider</th>
                   <th className="py-2 pr-3">Type</th>
@@ -143,14 +150,25 @@ export function RecordsWorkspace({ record }: { record: CaseRecord }) {
                 </tr>
               </thead>
               <tbody>
-                {chronology.map((entry) => (
-                  <tr key={entry.id} className="border-b border-border/60 align-top">
-                    <td className="whitespace-nowrap py-2 pr-3 font-mono text-xs">{entry.date}</td>
-                    <td className="py-2 pr-3">{entry.provider}</td>
-                    <td className="py-2 pr-3 capitalize text-muted">{entry.type}</td>
-                    <td className="py-2">{entry.summary}</td>
-                  </tr>
-                ))}
+                {chronology.map((entry) => {
+                  const isFlagged = flaggedEntryIds.has(entry.id);
+                  return (
+                    <tr key={entry.id} className="border-b border-border/60 align-top">
+                      <td className="w-5 py-2">
+                        {isFlagged && (
+                          <span
+                            title="Flagged in the review above — needs follow-up"
+                            className="inline-block h-2 w-2 rounded-full bg-danger"
+                          />
+                        )}
+                      </td>
+                      <td className="whitespace-nowrap py-2 pr-3 font-mono text-xs">{entry.date}</td>
+                      <td className="py-2 pr-3">{entry.provider}</td>
+                      <td className="py-2 pr-3 capitalize text-muted">{entry.type}</td>
+                      <td className="py-2">{entry.summary}</td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

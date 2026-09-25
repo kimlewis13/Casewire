@@ -71,13 +71,20 @@ export function getCaseAction(record: CaseRecord): CaseAction | null {
   }
 
   if (record.stage === "extraction" && record.extraction.completed) {
+    const unresolvedCount = record.extraction.flags.filter((f) => !f.resolved).length;
+    if (unresolvedCount > 0) {
+      return {
+        urgency: "attention",
+        title: `Medical records follow-up required for ${record.clientName}`,
+        description: `${unresolvedCount} item${unresolvedCount === 1 ? "" : "s"} found in the records need follow-up before this can move to drafting.`,
+        ctaLabel: "Review records",
+        href,
+      };
+    }
     return {
       urgency: "attention",
       title: `Ready to draft for ${record.clientName}`,
-      description:
-        record.extraction.flags.length > 0
-          ? `${record.extraction.flags.length} item${record.extraction.flags.length === 1 ? "" : "s"} need a look before drafting.`
-          : "Records reviewed and clean — ready for a demand letter.",
+      description: "Records reviewed and clean — ready for a demand letter.",
       ctaLabel: "Review records",
       href,
     };
