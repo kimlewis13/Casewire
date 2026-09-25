@@ -36,6 +36,14 @@ export function Sidebar() {
         >
           Dashboard
         </Link>
+        <Link
+          href="/chatbot"
+          className={`rounded-md px-3 py-2 text-sm font-semibold ${
+            pathname === "/chatbot" ? "bg-background text-foreground" : "text-muted hover:bg-background hover:text-foreground"
+          }`}
+        >
+          Chatbot prototype
+        </Link>
       </nav>
 
       {onCasePage && (

@@ -20,7 +20,15 @@ import { computeStatuteOfLimitationsDeadline } from "./statuteOfLimitations";
 
 const DB_PATH = path.join(process.cwd(), "data", "db.json");
 
-function emptyIntake(): IntakeState {
+/**
+ * A dedicated, always-resettable case backing the standalone chatbot
+ * walkthrough page (see /chatbot). It's excluded from the dashboard's case
+ * list and action queue — it isn't a real matter, just a replayable demo
+ * of the client-facing intake conversation.
+ */
+export const CHATBOT_DEMO_CASE_ID = "case-chatbot-demo";
+
+export function emptyIntake(): IntakeState {
   return {
     cursor: { fieldIndex: 0, awaitingFollowUp: false },
     transcript: [],
@@ -358,6 +366,21 @@ function seedDb(): Db {
         deliveredAt: hoursAgo(2 * 24),
         signedBy: "J. Ortiz",
       },
+    }),
+    // Not a real matter — backs the standalone /chatbot walkthrough page.
+    // Excluded from the dashboard's case list and action queue.
+    newCase({
+      id: CHATBOT_DEMO_CASE_ID,
+      clientName: "Demo visitor",
+      contactEmail: "demo@example.com",
+      contactPhone: "+15555550100",
+      owner: "Paralegal - You",
+      source: "chatbot",
+      stage: "intake",
+      stageEnteredAt: hoursAgo(0),
+      followUpWindowHours: 48,
+      createdAt: hoursAgo(0),
+      intake: emptyIntake(),
     }),
   ];
 

@@ -1,11 +1,15 @@
-import { readDb } from "@/lib/db";
+import { readDb, CHATBOT_DEMO_CASE_ID } from "@/lib/db";
 import { sortActions } from "@/lib/actions";
 import { CaseTable } from "@/components/CaseTable";
 import { ActionQueue } from "@/components/ActionQueue";
 import { NewCaseForm } from "@/components/NewCaseForm";
 
+// Reads mutable file-based case data — must not be statically prerendered
+// at build time, or new/updated cases would never appear in production.
+export const dynamic = "force-dynamic";
+
 export default function DashboardPage() {
-  const { cases } = readDb();
+  const cases = readDb().cases.filter((c) => c.id !== CHATBOT_DEMO_CASE_ID);
   const queue = sortActions(cases);
 
   return (
