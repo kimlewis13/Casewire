@@ -1,10 +1,10 @@
 import { randomUUID } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { getCase, updateCase } from "@/lib/db";
-import { INTAKE_FIELDS } from "@/lib/intakeScript";
+import { INTAKE_FIELDS, interpolateQuestion } from "@/lib/intakeScript";
 import { computeStatuteOfLimitationsDeadline } from "@/lib/statuteOfLimitations";
 import { parseContactDetails } from "@/lib/contactParsing";
-import { runIntakeTurn } from "@/lib/llmIntake";
+import { runIntakeTurn, type LlmIntakeTurnResult } from "@/lib/llmIntake";
 import type { IntakeTurn } from "@/lib/types";
 
 const OPENING_MESSAGE =
@@ -13,8 +13,22 @@ const OPENING_MESSAGE =
 const CLOSING_MESSAGE =
   "Thank you for walking me through all of that — I know none of this is easy to talk about. Everything you've told me is already with our team, and a real person will follow up with you directly within 24 hours. You don't need to do anything else right now.";
 
-const TROUBLE_MESSAGE =
-  "Sorry — I'm having trouble responding right now. Please try sending that again in a moment.";
+// If the AI conversation engine is unavailable (no API key configured, the
+// API is down, rate limited, etc.), fall back to a plain sequential
+// question flow instead of leaving the client stuck — assume their message
+// answers whichever field would have been asked next, store it verbatim,
+// and ask the next one. Less conversational, but the intake always
+// completes and always produces a usable case record.
+function fallbackTurn(message: string, captured: Record<string, string>): LlmIntakeTurnResult {
+  const missingBefore = INTAKE_FIELDS.filter((f) => !captured[f.key]?.trim());
+  const targetField = missingBefore[0];
+  const extracted: Record<string, string> = targetField ? { [targetField.key]: message } : {};
+  const newValues = { ...captured, ...extracted };
+  const stillMissing = INTAKE_FIELDS.filter((f) => !newValues[f.key]?.trim());
+  const complete = stillMissing.length === 0;
+  const reply = complete ? "" : interpolateQuestion(stillMissing[0].seedQuestion, newValues);
+  return { reply, extracted, complete };
+}
 
 function systemTurn(text: string): IntakeTurn {
   return {
@@ -86,27 +100,12 @@ export async function POST(
     { role: "user" as const, content: message },
   ];
 
-  let result;
+  let result: LlmIntakeTurnResult;
   try {
     result = await runIntakeTurn(history, existing.intake.values);
   } catch (err) {
-    console.error("LLM intake turn failed:", err);
-    // TEMPORARY: surface the real error inline so it's visible without
-    // needing Render's dashboard — remove once the root cause is confirmed.
-    const status = typeof err === "object" && err && "status" in err ? (err as { status?: unknown }).status : undefined;
-    const debugDetail = `${err instanceof Error ? err.constructor.name : typeof err}${status ? ` ${status}` : ""}: ${err instanceof Error ? err.message : String(err)}`;
-    const updated = updateCase(id, (c) => ({
-      ...c,
-      intake: {
-        ...c.intake,
-        transcript: [
-          ...c.intake.transcript,
-          clientTurn(message),
-          systemTurn(`${TROUBLE_MESSAGE}\n\n[debug] ${debugDetail}`),
-        ],
-      },
-    }));
-    return NextResponse.json({ case: updated });
+    console.error("LLM intake turn failed — falling back to sequential questions:", err);
+    result = fallbackTurn(message, existing.intake.values);
   }
 
   const newValues = { ...existing.intake.values, ...result.extracted };
