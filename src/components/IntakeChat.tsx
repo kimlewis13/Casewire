@@ -4,6 +4,12 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { CaseRecord, IntakeTurn } from "@/lib/types";
 
+const TYPING_DELAY_MS = 900;
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 function Bubble({ turn }: { turn: IntakeTurn }) {
   const isClient = turn.role === "client";
   return (
@@ -21,11 +27,36 @@ function Bubble({ turn }: { turn: IntakeTurn }) {
   );
 }
 
-export function IntakeChat({ record }: { record: CaseRecord }) {
+function TypingBubble() {
+  return (
+    <div className="flex justify-start">
+      <div className="flex items-center gap-1 rounded-lg border border-border bg-background px-3.5 py-3">
+        {[0, 1, 2].map((i) => (
+          <span
+            key={i}
+            className="h-1.5 w-1.5 animate-bounce rounded-full bg-muted"
+            style={{ animationDelay: `${i * 0.12}s` }}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export function IntakeChat({
+  record,
+  variant = "internal",
+  onCompleted,
+}: {
+  record: CaseRecord;
+  variant?: "internal" | "public";
+  onCompleted?: () => void;
+}) {
   const [transcript, setTranscript] = useState<IntakeTurn[]>(record.intake.transcript);
   const [completed, setCompleted] = useState(record.intake.completed);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
+  const [typing, setTyping] = useState(false);
   const [advancing, setAdvancing] = useState(false);
   const router = useRouter();
   const started = useRef(false);
@@ -34,24 +65,44 @@ export function IntakeChat({ record }: { record: CaseRecord }) {
   useEffect(() => {
     if (started.current || transcript.length > 0) return;
     started.current = true;
-    fetch(`/api/cases/${record.id}/intake`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message: "__start__" }),
-    })
-      .then((res) => res.json())
-      .then((data) => setTranscript(data.case.intake.transcript));
+    (async () => {
+      setTyping(true);
+      const res = await fetch(`/api/cases/${record.id}/intake`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: "__start__" }),
+      });
+      const data = await res.json();
+      await sleep(TYPING_DELAY_MS);
+      setTyping(false);
+      setTranscript(data.case.intake.transcript);
+    })();
   }, [record.id, transcript.length]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [transcript.length]);
+  }, [transcript.length, typing]);
 
   async function send() {
     const message = input.trim();
     if (!message || sending) return;
     setSending(true);
     setInput("");
+
+    // Show the visitor's own message immediately — no reason to make them
+    // wait for the round trip to see what they just typed.
+    setTranscript((prev) => [
+      ...prev,
+      {
+        id: `pending-${Date.now()}`,
+        role: "client",
+        field: null,
+        text: message,
+        isFollowUp: false,
+        createdAt: new Date().toISOString(),
+      },
+    ]);
+
     try {
       const res = await fetch(`/api/cases/${record.id}/intake`, {
         method: "POST",
@@ -59,9 +110,21 @@ export function IntakeChat({ record }: { record: CaseRecord }) {
         body: JSON.stringify({ message }),
       });
       const data = await res.json();
-      setTranscript(data.case.intake.transcript);
-      setCompleted(data.case.intake.completed);
+      const newTranscript: IntakeTurn[] = data.case.intake.transcript;
+
+      // The server appends exactly one client turn and one reply per
+      // exchange — swap in the real client turn now, then pace the bot's
+      // reply behind a brief "typing" beat instead of an instant swap.
+      setTranscript(newTranscript.slice(0, -1));
+      setTyping(true);
+      await sleep(TYPING_DELAY_MS);
+      setTyping(false);
+      setTranscript(newTranscript);
+
+      const nowCompleted = data.case.intake.completed;
+      setCompleted(nowCompleted);
       router.refresh();
+      if (nowCompleted) onCompleted?.();
     } finally {
       setSending(false);
     }
@@ -92,11 +155,12 @@ export function IntakeChat({ record }: { record: CaseRecord }) {
       </div>
 
       <div className="flex max-h-[420px] flex-col gap-3 overflow-y-auto scrollbar-thin p-4">
-        {transcript.length === 0 ? (
+        {transcript.length === 0 && !typing ? (
           <p className="text-sm text-muted">Starting the conversation…</p>
         ) : (
           transcript.map((turn) => <Bubble key={turn.id} turn={turn} />)
         )}
+        {typing && <TypingBubble />}
         <div ref={bottomRef} />
       </div>
 
@@ -125,7 +189,7 @@ export function IntakeChat({ record }: { record: CaseRecord }) {
         </form>
       )}
 
-      {completed && (
+      {completed && variant === "internal" && (
         <div className="border-t border-dashed border-border bg-background p-4">
           <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-muted">
             Internal — visible only to your team

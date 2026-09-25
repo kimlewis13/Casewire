@@ -34,15 +34,15 @@ export function Sidebar() {
             pathname === "/" ? "bg-background text-foreground" : "text-muted hover:bg-background hover:text-foreground"
           }`}
         >
-          Dashboard
+          Chatbot prototype
         </Link>
         <Link
-          href="/chatbot"
+          href="/dashboard"
           className={`rounded-md px-3 py-2 text-sm font-semibold ${
-            pathname === "/chatbot" ? "bg-background text-foreground" : "text-muted hover:bg-background hover:text-foreground"
+            pathname === "/dashboard" ? "bg-background text-foreground" : "text-muted hover:bg-background hover:text-foreground"
           }`}
         >
-          Chatbot prototype
+          Dashboard
         </Link>
       </nav>
 

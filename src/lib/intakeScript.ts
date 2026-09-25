@@ -11,6 +11,12 @@ export interface IntakeField {
    * original context.
    */
   mergeFollowUp?: (original: string, followUp: string) => string;
+  /**
+   * Direct-entry cases already have the client's name and contact info from
+   * when the case was created — the paralegal shouldn't be asked to re-enter
+   * them in the intake form.
+   */
+  skipForDirectEntry?: boolean;
 }
 
 const appendFollowUp = (original: string, followUp: string) =>
@@ -53,10 +59,18 @@ function containsVagueWord(answer: string): boolean {
 
 export const INTAKE_FIELDS: IntakeField[] = [
   {
+    key: "clientName",
+    label: "Name",
+    question:
+      "I'm really sorry this happened to you. Before anything else — nothing you share here commits you to hiring us, and you'll get to talk with a real person soon. Can I start with your name?",
+    isVague: (answer) => /^(hi|hey|hello|yo)\.?$/i.test(answer.trim()) || !answer.trim(),
+    followUpQuestion: () => "Sorry — I meant your name, so I know who I'm talking with!",
+    skipForDirectEntry: true,
+  },
+  {
     key: "incidentDate",
     label: "Incident date",
-    question:
-      "I'm really sorry this happened to you. Before anything else — nothing you share here commits you to hiring us, and you'll get to talk with a real person soon. I just want to understand your situation first. Can you tell me roughly when this happened?",
+    question: "Thanks, {name}. Can you tell me roughly when this happened?",
     isVague: (answer) =>
       (!/\d/.test(answer) && !RELATIVE_TIME.test(answer)) || wordCount(answer) <= 2,
     followUpQuestion: () =>
@@ -149,15 +163,31 @@ export const INTAKE_FIELDS: IntakeField[] = [
     key: "priorRepresentation",
     label: "Prior representation",
     question:
-      "Last thing — have you already spoken with another attorney about this, or signed anything with another firm?",
+      "One more thing about your case — have you already spoken with another attorney about this, or signed anything with another firm?",
     isVague: (answer) => YES_NO_ONLY.test(answer),
     followUpQuestion: (answer) =>
       /^\s*(yes|yeah|yep)/i.test(answer)
         ? "Thanks for telling me — is that still ongoing, or did it end? Did you sign a retainer or any settlement paperwork? This won't cause a problem, I just need to know where things stand."
         : "Good to know — that keeps things simple. Just to confirm for the file: no prior consultations, retainers, or settlement talks with anyone else?",
   },
+  {
+    key: "contactDetails",
+    label: "Contact & city",
+    question:
+      "Last thing — so someone from our team can follow up with you within 24 hours, what's the best phone number and email to reach you at, and what city are you in?",
+    isVague: (answer) => wordCount(answer) < 5,
+    followUpQuestion: () =>
+      "No problem — could you give me at least a phone number or email, and the city you're in?",
+    mergeFollowUp: appendFollowUp,
+    skipForDirectEntry: true,
+  },
 ];
 
 export function getField(index: number): IntakeField | undefined {
   return INTAKE_FIELDS[index];
+}
+
+export function interpolateQuestion(text: string, values: Record<string, string>): string {
+  const firstName = values.clientName?.trim().split(/\s+/)[0];
+  return text.replace("{name}", firstName || "there");
 }

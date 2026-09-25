@@ -2,6 +2,7 @@ import fs from "fs";
 import path from "path";
 import { randomUUID } from "crypto";
 import type {
+  CaseAlert,
   CaseNote,
   CaseRecord,
   CaseSource,
@@ -12,21 +13,13 @@ import type {
   MailState,
   Mention,
 } from "./types";
-import { INTAKE_FIELDS } from "./intakeScript";
+import { INTAKE_FIELDS, interpolateQuestion } from "./intakeScript";
 import { parseStructuredDocument, detectFlags } from "./extraction";
 import { findSampleDocument } from "./sampleDocuments";
 import { generateDemandLetter } from "./demand";
 import { computeStatuteOfLimitationsDeadline } from "./statuteOfLimitations";
 
 const DB_PATH = path.join(process.cwd(), "data", "db.json");
-
-/**
- * A dedicated, always-resettable case backing the standalone chatbot
- * walkthrough page (see /chatbot). It's excluded from the dashboard's case
- * list and action queue — it isn't a real matter, just a replayable demo
- * of the client-facing intake conversation.
- */
-export const CHATBOT_DEMO_CASE_ID = "case-chatbot-demo";
 
 export function emptyIntake(): IntakeState {
   return {
@@ -61,7 +54,7 @@ function seededChatIntake(values: Record<string, string>): IntakeState {
       id: randomUUID(),
       role: "system",
       field: field.key,
-      text: field.question,
+      text: interpolateQuestion(field.question, values),
       isFollowUp: false,
       createdAt: hoursAgo(200 - i),
     });
@@ -222,6 +215,8 @@ function seedDb(): Db {
       followUpWindowHours: 72,
       createdAt: hoursAgo(240),
       intake: seededChatIntake({
+        clientName: "Marcus Webb",
+        contactDetails: "marcus.webb@example.com · +15555550107",
         incidentDate: monthsAgoDate(4),
         incidentNarrative:
           "Multi-vehicle collision on the interstate during morning traffic — stopped in traffic and got hit from behind, which pushed the car into the vehicle ahead.",
@@ -257,6 +252,8 @@ function seedDb(): Db {
       followUpWindowHours: 24,
       createdAt: hoursAgo(96),
       intake: seededChatIntake({
+        clientName: "Devon Ward",
+        contactDetails: "devon.ward@example.com · +15555550103",
         incidentDate: "January 5, 2024",
         incidentNarrative:
           "Stopped at a red light downtown when another car rear-ended the vehicle from behind.",
@@ -301,6 +298,8 @@ function seedDb(): Db {
       followUpWindowHours: 72,
       createdAt: hoursAgo(40 * 24),
       intake: seededDirectIntake({
+        clientName: "Taylor Brooks",
+        contactDetails: "taylor.brooks@example.com · +15555550104",
         incidentDate: "November 3, 2023",
         incidentNarrative:
           "Crossing the street in a marked crosswalk with the signal in her favor when a delivery van turned into her.",
@@ -341,6 +340,8 @@ function seedDb(): Db {
       followUpWindowHours: 72,
       createdAt: hoursAgo(60 * 24),
       intake: seededChatIntake({
+        clientName: "Jamie Ortiz",
+        contactDetails: "jamie.ortiz@example.com · +15555550105",
         incidentDate: "August 12, 2023",
         incidentNarrative:
           "Merging onto the highway when another car sideswiped the vehicle from the next lane.",
@@ -367,24 +368,9 @@ function seedDb(): Db {
         signedBy: "J. Ortiz",
       },
     }),
-    // Not a real matter — backs the standalone /chatbot walkthrough page.
-    // Excluded from the dashboard's case list and action queue.
-    newCase({
-      id: CHATBOT_DEMO_CASE_ID,
-      clientName: "Demo visitor",
-      contactEmail: "demo@example.com",
-      contactPhone: "+15555550100",
-      owner: "Paralegal - You",
-      source: "chatbot",
-      stage: "intake",
-      stageEnteredAt: hoursAgo(0),
-      followUpWindowHours: 48,
-      createdAt: hoursAgo(0),
-      intake: emptyIntake(),
-    }),
   ];
 
-  return { cases, mentions: [] };
+  return { cases, mentions: [], caseAlerts: [] };
 }
 
 function ensureDb(): Db {
@@ -398,6 +384,7 @@ function ensureDb(): Db {
   try {
     const parsed = JSON.parse(raw) as Db;
     if (!parsed.mentions) parsed.mentions = [];
+    if (!parsed.caseAlerts) parsed.caseAlerts = [];
     return parsed;
   } catch {
     const seeded = seedDb();
@@ -434,6 +421,12 @@ export function updateCase(
 export function addMentions(mentions: Mention[]): void {
   const db = readDb();
   db.mentions = [...db.mentions, ...mentions];
+  writeDb(db);
+}
+
+export function addCaseAlert(alert: CaseAlert): void {
+  const db = readDb();
+  db.caseAlerts = [...db.caseAlerts, alert];
   writeDb(db);
 }
 

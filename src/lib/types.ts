@@ -144,7 +144,16 @@ export interface Mention {
   read: boolean;
 }
 
+export interface CaseAlert {
+  id: string;
+  createdAt: string;
+  caseId: string;
+  clientName: string;
+  read: boolean;
+}
+
 export interface Db {
   cases: CaseRecord[];
   mentions: Mention[];
+  caseAlerts: CaseAlert[];
 }

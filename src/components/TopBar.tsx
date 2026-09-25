@@ -2,24 +2,43 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import type { Mention } from "@/lib/types";
+import type { CaseAlert, Mention } from "@/lib/types";
 import { formatDateTime } from "@/lib/format";
+
+type Notification =
+  | ({ kind: "mention" } & Mention)
+  | ({ kind: "case_alert" } & CaseAlert);
 
 export function TopBar() {
   const [open, setOpen] = useState(false);
-  const [mentions, setMentions] = useState<Mention[]>([]);
+  const [items, setItems] = useState<Notification[]>([]);
   const [unread, setUnread] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
     async function load() {
       try {
-        const res = await fetch("/api/mentions");
-        const data = await res.json();
-        if (!cancelled) {
-          setMentions(data.mentions ?? []);
-          setUnread(data.unreadCount ?? 0);
-        }
+        const [mentionsRes, alertsRes] = await Promise.all([
+          fetch("/api/mentions"),
+          fetch("/api/case-alerts"),
+        ]);
+        const mentionsData = await mentionsRes.json();
+        const alertsData = await alertsRes.json();
+        if (cancelled) return;
+
+        const mentions: Notification[] = (mentionsData.mentions ?? []).map((m: Mention) => ({
+          kind: "mention" as const,
+          ...m,
+        }));
+        const alerts: Notification[] = (alertsData.alerts ?? []).map((a: CaseAlert) => ({
+          kind: "case_alert" as const,
+          ...a,
+        }));
+        const merged = [...mentions, ...alerts].sort(
+          (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        );
+        setItems(merged);
+        setUnread(merged.filter((i) => !i.read).length);
       } catch {
         // background convenience poll — ignore failures
       }
@@ -39,8 +58,9 @@ export function TopBar() {
     setOpen(next);
     if (next && unread > 0) {
       setUnread(0);
-      setMentions((prev) => prev.map((m) => ({ ...m, read: true })));
+      setItems((prev) => prev.map((i) => ({ ...i, read: true })));
       fetch("/api/mentions/read-all", { method: "POST" }).catch(() => {});
+      fetch("/api/case-alerts/read-all", { method: "POST" }).catch(() => {});
     }
   }
 
@@ -76,24 +96,35 @@ export function TopBar() {
         {open && (
           <div className="absolute right-0 top-10 z-30 w-80 rounded-lg border border-border bg-surface shadow-lg">
             <p className="border-b border-border px-4 py-2 text-xs font-semibold uppercase tracking-widest text-muted">
-              Mentions
+              Notifications
             </p>
-            {mentions.length === 0 ? (
-              <p className="px-4 py-6 text-center text-sm text-muted">No mentions yet.</p>
+            {items.length === 0 ? (
+              <p className="px-4 py-6 text-center text-sm text-muted">No notifications yet.</p>
             ) : (
               <ul className="max-h-96 overflow-y-auto scrollbar-thin">
-                {mentions.map((m) => (
-                  <li key={m.id} className="border-b border-border/60 px-4 py-3 text-sm last:border-0">
+                {items.map((item) => (
+                  <li key={item.id} className="border-b border-border/60 px-4 py-3 text-sm last:border-0">
                     <Link
-                      href={`/case/${m.caseId}#notes`}
+                      href={item.kind === "mention" ? `/case/${item.caseId}#notes` : `/case/${item.caseId}`}
                       onClick={() => setOpen(false)}
                       className="block hover:text-accent"
                     >
-                      <p className="text-xs text-muted">
-                        {formatDateTime(m.createdAt)} · {m.mentionedBy} tagged {m.targetPerson}
-                      </p>
-                      <p className="mt-0.5 font-semibold">{m.clientName}</p>
-                      <p className="mt-0.5 line-clamp-2 text-muted">{m.noteText}</p>
+                      {item.kind === "mention" ? (
+                        <>
+                          <p className="text-xs text-muted">
+                            {formatDateTime(item.createdAt)} · {item.mentionedBy} tagged {item.targetPerson}
+                          </p>
+                          <p className="mt-0.5 font-semibold">{item.clientName}</p>
+                          <p className="mt-0.5 line-clamp-2 text-muted">{item.noteText}</p>
+                        </>
+                      ) : (
+                        <>
+                          <p className="text-xs text-muted">
+                            {formatDateTime(item.createdAt)} · New case from the chatbot
+                          </p>
+                          <p className="mt-0.5 font-semibold">{item.clientName}</p>
+                        </>
+                      )}
                     </Link>
                   </li>
                 ))}

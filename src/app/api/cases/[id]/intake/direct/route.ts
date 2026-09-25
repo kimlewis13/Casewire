@@ -19,7 +19,8 @@ export async function POST(
     return NextResponse.json({ error: "This case was not started as a direct entry." }, { status: 400 });
   }
 
-  const missing = INTAKE_FIELDS.filter((f) => !String(values[f.key] ?? "").trim());
+  const askedFields = INTAKE_FIELDS.filter((f) => !f.skipForDirectEntry);
+  const missing = askedFields.filter((f) => !String(values[f.key] ?? "").trim());
   if (missing.length > 0) {
     return NextResponse.json(
       { error: `Fill in ${missing.map((f) => f.label).join(", ")} before saving.` },
@@ -28,9 +29,16 @@ export async function POST(
   }
 
   const cleanValues: Record<string, string> = {};
-  for (const field of INTAKE_FIELDS) {
+  for (const field of askedFields) {
     cleanValues[field.key] = String(values[field.key]).trim();
   }
+  // Name and contact info were already captured when this case was created —
+  // carry them into intake.values too so Case facts shows them consistently
+  // across direct-entry and chatbot-sourced cases.
+  cleanValues.clientName = existing.clientName;
+  cleanValues.contactDetails = [existing.contactEmail, existing.contactPhone]
+    .filter(Boolean)
+    .join(" · ");
 
   const updated = updateCase(id, (c) => ({
     ...c,

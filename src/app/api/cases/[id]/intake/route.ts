@@ -1,8 +1,9 @@
 import { randomUUID } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { getCase, updateCase } from "@/lib/db";
-import { INTAKE_FIELDS } from "@/lib/intakeScript";
+import { INTAKE_FIELDS, interpolateQuestion } from "@/lib/intakeScript";
 import { computeStatuteOfLimitationsDeadline } from "@/lib/statuteOfLimitations";
+import { parseContactDetails } from "@/lib/contactParsing";
 import type { IntakeTurn } from "@/lib/types";
 
 function systemTurn(field: string | null, text: string, isFollowUp: boolean): IntakeTurn {
@@ -94,21 +95,34 @@ export async function POST(
     newTurns.push(
       systemTurn(
         null,
-        "Thank you for walking me through all of that — I know none of this is easy to talk about. Everything you've told me is already with our team, and a real person will follow up with you directly, usually within a few hours. You don't need to do anything else right now.",
+        "Thank you for walking me through all of that — I know none of this is easy to talk about. Everything you've told me is already with our team, and a real person will follow up with you directly within 24 hours. You don't need to do anything else right now.",
         false
       )
     );
   } else if (nextFieldIndex !== cursor.fieldIndex) {
     const next = INTAKE_FIELDS[nextFieldIndex];
-    newTurns.push(systemTurn(next.key, next.question, false));
+    newTurns.push(systemTurn(next.key, interpolateQuestion(next.question, newValues), false));
   }
 
   const statuteOfLimitationsDeadline = completed
     ? computeStatuteOfLimitationsDeadline(newValues.incidentDate ?? "")
     : existing.intake.statuteOfLimitationsDeadline;
 
+  // The name and contact details are collected conversationally, in intake
+  // values, but also need to land on the case record's own top-level
+  // fields (clientName/contactEmail/contactPhone) — that's what the rest of
+  // the app (dashboard, case header, follow-up alerts) actually reads.
+  const recordPatch: { clientName?: string; contactEmail?: string; contactPhone?: string } = {};
+  if (newValues.clientName) recordPatch.clientName = newValues.clientName.trim();
+  if (newValues.contactDetails) {
+    const parsed = parseContactDetails(newValues.contactDetails);
+    if (parsed.email) recordPatch.contactEmail = parsed.email;
+    if (parsed.phone) recordPatch.contactPhone = parsed.phone;
+  }
+
   const updated = updateCase(id, (c) => ({
     ...c,
+    ...recordPatch,
     intake: {
       cursor: { fieldIndex: nextFieldIndex, awaitingFollowUp: nextAwaitingFollowUp },
       transcript: [...c.intake.transcript, ...newTurns],
