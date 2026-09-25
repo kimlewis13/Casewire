@@ -46,6 +46,7 @@ Facts still needed:
 ${missing.length ? missing.map((f) => `- ${f.key}: ${f.description}`).join("\n") : "(none — everything is captured)"}
 
 How to run the conversation:
+- The opening message only thanked them for contacting the firm and asked their name — it deliberately does not yet say anything about their accident, since at that point you don't know anything happened. The moment they give their name, that's your first chance to react to why they're really here: greet them by name, say you're sorry this happened to them, and briefly note that nothing they share here commits them to hiring the firm and a real person will follow up with them soon — then flow straight into asking what happened, all in that same reply.
 - Acknowledge what they just said, specifically, before moving on. Never just fire the next question with no reaction to what they told you.
 - If their message answers something on the "still needed" list — even if it covers more than one thing at once, or answers something out of order — call record_facts with everything you can confidently extract from it.
 - Ask about only one remaining thing per message, phrased naturally, like a person talking, not a form field.
@@ -54,7 +55,7 @@ How to run the conversation:
 - When asking about a prior injury to the same body part, frame it as genuinely helpful to know upfront, not an accusation.
 - Once every fact on the "still needed" list is captured, call complete_intake. Always include a short, warm closing text alongside that call.
 - Never invent or assume a fact. Only record what the client actually said.
-- Keep every reply short — a sentence or two, not a paragraph.`;
+- Keep every reply short — a sentence or two, not a paragraph. The one exception is the reply right after they give their name, which can run a little longer since it's carrying the sympathy line and the disclaimer as well as the next question.`;
 }
 
 export interface LlmIntakeTurnResult {

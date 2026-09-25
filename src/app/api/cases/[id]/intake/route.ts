@@ -8,7 +8,7 @@ import { runIntakeTurn } from "@/lib/llmIntake";
 import type { IntakeTurn } from "@/lib/types";
 
 const OPENING_MESSAGE =
-  "I'm really sorry this happened to you. Before anything else — nothing you share here commits you to hiring us, and you'll get to talk with a real person soon. Can I start with your name?";
+  "Thank you for contacting Lewis & Louis Injury Law. Can I start with your name?";
 
 const CLOSING_MESSAGE =
   "Thank you for walking me through all of that — I know none of this is easy to talk about. Everything you've told me is already with our team, and a real person will follow up with you directly within 24 hours. You don't need to do anything else right now.";
