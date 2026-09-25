@@ -91,11 +91,19 @@ export async function POST(
     result = await runIntakeTurn(history, existing.intake.values);
   } catch (err) {
     console.error("LLM intake turn failed:", err);
+    // TEMPORARY: surface the real error inline so it's visible without
+    // needing Render's dashboard — remove once the root cause is confirmed.
+    const status = typeof err === "object" && err && "status" in err ? (err as { status?: unknown }).status : undefined;
+    const debugDetail = `${err instanceof Error ? err.constructor.name : typeof err}${status ? ` ${status}` : ""}: ${err instanceof Error ? err.message : String(err)}`;
     const updated = updateCase(id, (c) => ({
       ...c,
       intake: {
         ...c.intake,
-        transcript: [...c.intake.transcript, clientTurn(message), systemTurn(TROUBLE_MESSAGE)],
+        transcript: [
+          ...c.intake.transcript,
+          clientTurn(message),
+          systemTurn(`${TROUBLE_MESSAGE}\n\n[debug] ${debugDetail}`),
+        ],
       },
     }));
     return NextResponse.json({ case: updated });
