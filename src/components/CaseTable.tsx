@@ -21,7 +21,20 @@ const COLUMNS: { key: SortKey; label: string }[] = [
 export function CaseTable({ records }: { records: CaseRecord[] }) {
   const [sortKey, setSortKey] = useState<SortKey>("timeInStage");
   const [asc, setAsc] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const router = useRouter();
+
+  async function handleDelete(e: React.MouseEvent, record: CaseRecord) {
+    e.stopPropagation();
+    if (!window.confirm(`Delete ${record.clientName}'s case? This can't be undone.`)) return;
+    setDeletingId(record.id);
+    try {
+      await fetch(`/api/cases/${record.id}`, { method: "DELETE" });
+      router.refresh();
+    } finally {
+      setDeletingId(null);
+    }
+  }
 
   function toggleSort(key: SortKey) {
     if (key === sortKey) {
@@ -66,6 +79,7 @@ export function CaseTable({ records }: { records: CaseRecord[] }) {
                 </button>
               </th>
             ))}
+            <th className="px-4 py-2.5" />
           </tr>
         </thead>
         <tbody>
@@ -91,6 +105,15 @@ export function CaseTable({ records }: { records: CaseRecord[] }) {
                   {overdue && " · overdue"}
                 </td>
                 <td className="px-4 py-3 text-muted">{record.followUpWindowHours}h</td>
+                <td className="px-4 py-3 text-right">
+                  <button
+                    onClick={(e) => handleDelete(e, record)}
+                    disabled={deletingId === record.id}
+                    className="text-xs font-semibold text-muted hover:text-danger disabled:opacity-50"
+                  >
+                    {deletingId === record.id ? "Deleting…" : "Delete"}
+                  </button>
+                </td>
               </tr>
             );
           })}

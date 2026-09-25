@@ -109,16 +109,28 @@ export async function POST(
   }
 
   const newValues = { ...existing.intake.values, ...result.extracted };
-  // Trust the model's own completion signal, with a safety net in case it
-  // fills every field but forgets to call complete_intake.
-  const completed = result.complete || INTAKE_FIELDS.every((f) => newValues[f.key]?.trim());
+  // Whether every required field is actually filled is the sole source of
+  // truth for completion — the model's own complete_intake call is a signal
+  // for phrasing, not a gate. Trusting result.complete on its own let the
+  // model end the conversation (e.g. contact details never asked) as soon
+  // as it merely believed it was done.
+  const completed = INTAKE_FIELDS.every((f) => newValues[f.key]?.trim());
+  const nextMissing = INTAKE_FIELDS.find((f) => !newValues[f.key]?.trim());
+
+  // If the model thought it was done but a required field is still empty,
+  // don't trust whatever closing-style text it generated for this turn —
+  // it may read like a goodbye instead of a question. Ask deterministically.
+  const replyText =
+    !completed && result.complete && nextMissing
+      ? interpolateQuestion(nextMissing.seedQuestion, newValues)
+      : result.reply || "Got it, thank you.";
 
   const newTurns: IntakeTurn[] = [
     clientTurn(message),
     // Always show the same tested closing line on completion rather than
     // whatever the model generated for its final turn, so that critical
     // message never varies.
-    systemTurn(completed ? CLOSING_MESSAGE : result.reply || "Got it, thank you."),
+    systemTurn(completed ? CLOSING_MESSAGE : replyText),
   ];
 
   const statuteOfLimitationsDeadline = completed

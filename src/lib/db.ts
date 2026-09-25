@@ -454,6 +454,14 @@ export function createCase(input: {
   return record;
 }
 
+export function deleteCase(id: string): void {
+  const db = readDb();
+  db.cases = db.cases.filter((c) => c.id !== id);
+  db.mentions = db.mentions.filter((m) => m.caseId !== id);
+  db.caseAlerts = db.caseAlerts.filter((a) => a.caseId !== id);
+  writeDb(db);
+}
+
 export function resetDb(): Db {
   const seeded = seedDb();
   writeDb(seeded);
