@@ -197,9 +197,11 @@ function seedDb(): Db {
       createdAt: hoursAgo(1),
       intake: emptyIntake(),
     }),
-    // The centralization story: three separate provider systems, added one
-    // at a time, none of which talk to each other — the case this prototype
-    // is really for. Seeded with zero records yet so it can be built up live.
+    // The centralization story: three separate provider systems that never
+    // talk to each other — the case this prototype is really for. Pre-loaded
+    // with all three records (rather than built up live) so the gap/flag
+    // detection is visible immediately on every fresh deploy, since the
+    // runtime data store doesn't persist across redeploys.
     newCase({
       id: "case-webb",
       clientName: "Marcus Webb",
@@ -211,6 +213,7 @@ function seedDb(): Db {
       stageEnteredAt: hoursAgo(1),
       followUpWindowHours: 72,
       createdAt: hoursAgo(240),
+      sampleDocIds: ["webb-er-visit", "webb-imaging", "webb-orthopedic"],
       intake: seededChatIntake({
         clientName: "Marcus Webb",
         contactDetails: "marcus.webb@example.com · +15555550107",
