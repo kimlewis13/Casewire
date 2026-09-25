@@ -81,7 +81,7 @@ Notes: Wrist and hip mobility improving with home exercise program. Discharged f
     text: `Date: ${webbDate(0)}
 Provider: Metro General Hospital ER — Dr. L. Whitfield
 Type: visit
-Notes: Patient involved in a multi-vehicle collision, transported by ambulance. Diagnosis: whiplash, right shoulder strain, mild concussion. Patient reports a prior injury to the left shoulder in 2021, unrelated and fully healed. Referred to neurology for concussion follow-up.
+Notes: Patient involved in a multi-vehicle collision, transported by ambulance. Diagnosis: whiplash, right shoulder strain, mild concussion. Patient reports a prior injury to the right shoulder in 2021, said to have fully resolved with no ongoing symptoms before this incident. Referred to neurology for concussion follow-up.
 ---
 Date: ${webbDate(0)}
 Provider: Metro General Hospital ER — Discharge Planning
